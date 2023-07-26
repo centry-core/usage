@@ -1,1 +1,35 @@
-<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/usage.css') }}"/>
+<style>
+    .usage-card {
+        background: var(--gray100);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+    .blue-square {
+        background: #B0D0FF;
+        border-radius: 6px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 40px;
+        height: 40px;
+    }
+    #vcu-limit-divider, #storage-limit-divider {
+        position: absolute;
+        display: inline-block;
+        width: 2px;
+        height: 14px;
+        transform: translateY(-50%);
+        top: 50%;
+        background: #757F99;
+        border-radius: 1px;
+    }
+    #vcu-limit-description, #storage-limit-description {
+        position: absolute;
+        white-space: nowrap;
+        top: -350%;
+        transform: translateX(-50%);
+    }
+</style>
