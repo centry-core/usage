@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Union, Optional
 from datetime import datetime, date
 from hurry.filesize import size
+from sqlalchemy import func, asc, desc
 
 
 from ..models.resource_usage import ResourceUsage
@@ -26,7 +27,7 @@ def calculate_readable_retention_policy(days: int) -> dict:
     }
 
 class RPC:
-    @web.rpc('get_resource_usage', 'get_resource_usage')
+    @web.rpc('usage_get_resource_usage', 'get_resource_usage')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def get_resource_usage(
             self, project_id: int | None = None,
@@ -46,6 +47,9 @@ class RPC:
             query = query.filter(ResourceUsage.start_time <= end_time.isoformat())
         query_results = query.all()
         for result in query_results:
+            # Exclude tasks which run as a part of a test:
+            if result.type == 'task' and result.test_report_id:
+                continue
             resource_usage.append(
                 {
                     'id': result.id,
@@ -59,34 +63,7 @@ class RPC:
             )
         return resource_usage
 
-    @web.rpc('create_test_resource_usage', 'create_test_resource_usage')
-    @rpc_tools.wrap_exceptions(RuntimeError)
-    def create_test_resource_usage(self, report_data: dict):
-        cloud_settings = report_data['test_config']['env_vars']['cloud_settings']
-        is_project_resourses = False
-        if cloud_settings:
-            is_project_resourses = True
-            integration_name = cloud_settings['integration_name']
-            integration = self.context.rpc_manager.call.integrations_get_admin_defaults(integration_name)
-            if integration and integration.id == cloud_settings['id'] and not cloud_settings['project_id']:
-                is_project_resourses = False
-        resource_usage_test = ResourceUsage(
-            project_id = report_data['project_id'],
-            name = report_data['name'],
-            type = 'test',
-            test_uid_or_task_id = report_data['test_uid'],
-            test_report_id = report_data['id'],            
-            start_time = report_data['start_time'],
-            cpu = report_data['test_config']['env_vars']['cpu_quota'],
-            memory = report_data['test_config']['env_vars']['memory_quota'],
-            runners = report_data['test_config']['parallel_runners'],
-            location = report_data['test_config']['location'],
-            is_cloud = bool(cloud_settings),
-            is_project_resourses = is_project_resourses
-        )
-        resource_usage_test.insert()
-
-    @web.rpc('update_test_resource_usage', 'update_test_resource_usage')
+    @web.rpc('usage_update_test_resource_usage', 'update_test_resource_usage')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def update_test_resource_usage(self, report_data: dict):
         report_id = report_data.pop('report_id')
@@ -100,7 +77,7 @@ class RPC:
         resources.duration += report_data['time_to_sleep']
         resources.commit()
 
-    @web.rpc('get_platform_storage_usage', 'get_platform_storage_usage')
+    @web.rpc('usage_get_platform_storage_usage', 'get_platform_storage_usage')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def get_platform_storage_usage(self, project_id: int | None = None):
         integrations = self.context.rpc_manager.call.integrations_get_administration_integrations_by_name(
@@ -133,7 +110,7 @@ class RPC:
                 )
         return bucket_usage
 
-    @web.rpc('get_project_storage_usage', 'get_project_storage_usage')
+    @web.rpc('usage_get_project_storage_usage', 'get_project_storage_usage')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def get_project_storage_usage(self, project_id: int):
         integrations = self.context.rpc_manager.call.integrations_get_project_integrations_by_name(
@@ -167,27 +144,30 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def get_storage_throughput(self, project_id: int | None = None):
         throughput = []
-        if project_id:
-            query = StorageThroughput.query.filter(
-                ResourceUsage.project_id == project_id
+        query = StorageThroughput.query.with_entities(
+                    StorageThroughput.project_id,
+                    StorageThroughput.date,
+                    func.sum(StorageThroughput.throughput).label('total_throughput')
+                ).group_by(
+                    StorageThroughput.project_id,
+                    StorageThroughput.date,
+                ).order_by(
+                    asc(StorageThroughput.date),                
                 )
-        else:
-            query = ResourceUsage.query
+        if project_id:
+            query = query.filter(StorageThroughput.project_id == project_id)
         query_results = query.all()
         for result in query_results:
             throughput.append(
                 {
-                    'id': result.id,
                     'project_id': result.project_id,
-                    'date': result.date.strftime("%m.%d.%Y"),
-                    'throughput': size(result.throughput),
-                    'is_project_resourses': result.is_project_resourses,
+                    'date': result.date.strftime("%d.%m.%Y"),
+                    'throughput': size(result.total_throughput),
                 }
             )
         return throughput
 
-
-    @web.rpc('usage_write_minio_monitor_data_to_postgres', 'usage_write_minio_monitor_data_to_postgres')
+    @web.rpc('usage_write_minio_monitor_data_to_postgres', 'write_minio_monitor_data_to_postgres')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def write_minio_monitor_data_to_postgres(self):
         monitor_data = []

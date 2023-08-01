@@ -9,7 +9,37 @@ from pylon.core.tools import web, log
 
 class Event:
 
-    @web.event(f"create_task_resource_usage")
+    @web.event(f"usage_create_test_resource_usage")
+    def create_test_resource_usage(self, context, event, payload):
+        cloud_settings = payload['test_config']['env_vars']['cloud_settings']
+        is_project_resourses = False
+        if cloud_settings:
+            is_project_resourses = True
+            integration_name = cloud_settings['integration_name']
+            integrations = self.context.rpc_manager.call.integrations_get_administration_integrations_by_name(
+                integration_name=integration_name, only_shared=True
+            )
+            for integration in integrations:
+                if integration.id == cloud_settings['id'] and not cloud_settings['project_id']:
+                    is_project_resourses = False
+                    break
+        resource_usage_test = ResourceUsage(
+            project_id = payload['project_id'],
+            name = payload['name'],
+            type = 'test',
+            test_uid_or_task_id = payload['test_uid'],
+            test_report_id = payload['id'],            
+            start_time = payload['start_time'],
+            cpu = payload['test_config']['env_vars']['cpu_quota'],
+            memory = payload['test_config']['env_vars']['memory_quota'],
+            runners = payload['test_config']['parallel_runners'],
+            location = payload['test_config']['location'],
+            is_cloud = bool(cloud_settings),
+            is_project_resourses = is_project_resourses
+        )
+        resource_usage_test.insert()
+
+    @web.event(f"usage_create_task_resource_usage")
     def create_task_resource_usage(self, context, event, payload):
         is_cloud = False  # TODO: must change it when we will be able to run tasks in clouds
         is_project_resourses = False
@@ -30,7 +60,7 @@ class Event:
         )
         resource_usage_task.insert()
 
-    @web.event(f"update_task_resource_usage")
+    @web.event(f"usage_update_task_resource_usage")
     def update_task_resource_usage(self, context, event, payload):
         resource_usage_task = ResourceUsage.query.filter(
             ResourceUsage.task_result_id == payload['id']
@@ -54,6 +84,6 @@ class Event:
         resource_usage_task.resource_usage = resource_usage
         resource_usage_task.commit()
 
-    @web.event('throughput_monitor')
+    @web.event('usage_throughput_monitor')
     def throughput_monitor(self, context, event, payload) -> None:
         self.minio_monitor[(payload['project_id'], payload['is_local'])] += payload['file_size']
