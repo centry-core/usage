@@ -52,7 +52,7 @@ class Module(module.ModuleModel):
             permissions={
                 "permissions": ["projects.projects.project.view"]
                 },
-            prefix="usage_configuration_",
+            prefix="usage_",
             weight=5,
         )
         
