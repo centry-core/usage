@@ -163,6 +163,7 @@ class RPC:
                     'project_id': result.project_id,
                     'date': result.date.strftime("%d.%m.%Y"),
                     'throughput': size(result.total_throughput),
+                    'raw_size': result.total_throughput,
                 }
             )
         return throughput

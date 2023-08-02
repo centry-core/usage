@@ -30,4 +30,8 @@ class API(api_tools.APIBase):
         })
     def get(self, project_id: int, **kwargs):
         throughput = self.module.get_storage_throughput(project_id)
-        return {'total': len(throughput), 'rows': throughput}, 200
+        return {
+            'total': len(throughput), 
+            'rows': throughput,
+            'total_throughput': size(sum(i['raw_size'] for i in throughput)),
+            }, 200
