@@ -1,5 +1,5 @@
 {
   "name": "Usage plugin",
   "version": "0.3",
-  "depends_on": []
+  "depends_on": ["shared", "projects", "integrations"]
 }

@@ -16,6 +16,8 @@
 #   limitations under the License.
 
 """ Module """
+from collections import defaultdict
+
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module
 
@@ -33,6 +35,7 @@ class Module(module.ModuleModel):
 
         self.integrations = dict()
         self.sections = dict()
+        self.minio_monitor = defaultdict(int)
 
     def init(self):
         """ Init module """
@@ -43,6 +46,7 @@ class Module(module.ModuleModel):
         self.descriptor.init_blueprint()
         self.descriptor.init_api()
         self.descriptor.init_slots()
+        self.descriptor.init_events()
 
         theme.register_subsection(
             'configuration', 'usage',
@@ -68,10 +72,17 @@ class Module(module.ModuleModel):
         #             "default": {"admin": True, "viewer": True, "editor": True},
         #             "developer": {"admin": True, "viewer": True, "editor": True},
         #         }},
-        #     prefix="administration_usage_configuration_",
+        #     prefix="administration_usage_",
         #     # icon_class="fas fa-server fa-fw",
         #     # weight=2,
         # )
+
+        schedule_data = {
+            'name': 'storage_throughput_monitor',
+            'cron': '*/3 * * * *',
+            'rpc_func': 'usage_write_minio_monitor_data_to_postgres'
+        }
+        self.context.rpc_manager.call.scheduling_create_if_not_exists(schedule_data)
 
 
     def deinit(self):  # pylint: disable=R0201
