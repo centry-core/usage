@@ -60,7 +60,7 @@ class Event:
         )
         resource_usage_task.insert()
 
-    @web.event(f"usage_update_task_resource_usage")
+    @web.event(f"task_finished")
     def update_task_resource_usage(self, context, event, payload):
         resource_usage_task = ResourceUsage.query.filter(
             ResourceUsage.task_result_id == payload['id']
