@@ -4,27 +4,13 @@ from datetime import datetime, date
 from hurry.filesize import size
 from sqlalchemy import func, asc, desc
 
-
 from ..models.resource_usage import ResourceUsage
 from ..models.storage_throughput import StorageThroughput
+from ..utils.utils import calculate_readable_retention_policy
 
 from tools import rpc_tools, db_tools, MinioClient, MinioClientAdmin
 from pylon.core.tools import web, log
 
-
-def calculate_readable_retention_policy(days: int) -> dict:
-    if days and days % 365 == 0:
-        expiration_measure, expiration_value = 'years', days // 365
-    elif days and days % 31 == 0:
-        expiration_measure, expiration_value = 'months', days // 31
-    elif days and days % 7 == 0:
-        expiration_measure, expiration_value = 'weeks', days // 7
-    else:
-        expiration_measure, expiration_value = 'days', days
-    return {
-        'expiration_measure': expiration_measure,
-        'expiration_value': expiration_value
-    }
 
 class RPC:
     @web.rpc('usage_get_resource_usage', 'get_resource_usage')
@@ -65,9 +51,10 @@ class RPC:
 
     @web.rpc('usage_update_test_resource_usage', 'update_test_resource_usage')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def update_test_resource_usage(self, report_data: dict):
+    def update_test_resource_usage(self, project_id: int, report_data: dict):
         report_id = report_data.pop('report_id')
         resources = ResourceUsage.query.filter(
+            ResourceUsage.project_id == project_id,
             ResourceUsage.type == 'test',
             ResourceUsage.test_report_id == report_id
             ).first()
@@ -142,7 +129,11 @@ class RPC:
 
     @web.rpc('usage_get_storage_throughput', 'get_storage_throughput')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def get_storage_throughput(self, project_id: int | None = None):
+    def get_storage_throughput(
+            self, project_id: int | None = None,
+            start_time: datetime | None = None,
+            end_time: datetime | None = None
+            ):
         throughput = []
         query = StorageThroughput.query.with_entities(
                     StorageThroughput.project_id,
@@ -156,6 +147,10 @@ class RPC:
                 )
         if project_id:
             query = query.filter(StorageThroughput.project_id == project_id)
+        if start_time:
+            query = query.filter(StorageThroughput.date >= start_time.isoformat())
+        if end_time:
+            query = query.filter(StorageThroughput.date <= end_time.isoformat())
         query_results = query.all()
         for result in query_results:
             throughput.append(
