@@ -16,7 +16,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import JSON
 
 from tools import db, db_tools, rpc_tools
-from ..utils.calculate_vcu import calculate_vcu, calculate_extras
+from ..utils.utils import calculate_vcu, calculate_extras
 
 
 class ResourceUsage(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
@@ -47,10 +47,10 @@ class ResourceUsage(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     def project_vcu(self):
         if self.is_project_resourses:
             return self._vcu
+        return 0
 
     @property
     def platform_vcu(self):
         if self.is_project_resourses:
             return calculate_extras(self._vcu)
-        else:
-            return self._vcu
+        return self._vcu
