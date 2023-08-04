@@ -6,6 +6,7 @@ from sqlalchemy import func, asc, desc
 
 from ..models.resource_usage import ResourceUsage
 from ..models.storage_throughput import StorageThroughput
+from ..models.storage_used_space import StorageUsedSpace
 from ..utils.utils import calculate_readable_retention_policy
 
 from tools import rpc_tools, db_tools, MinioClient, MinioClientAdmin
@@ -163,24 +164,105 @@ class RPC:
             )
         return throughput
 
-    @web.rpc('usage_write_minio_monitor_data_to_postgres', 'write_minio_monitor_data_to_postgres')
+    @web.rpc('usage_get_storage_used_space', 'get_storage_used_space')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def write_minio_monitor_data_to_postgres(self):
+    def get_storage_used_space(
+            self, project_id: int | None = None,
+            start_time: datetime | None = None,
+            end_time: datetime | None = None
+            ):
+        used_space = []
+        query = StorageUsedSpace.query.with_entities(
+                    StorageUsedSpace.project_id,
+                    StorageUsedSpace.date,
+                    StorageUsedSpace.is_project_resourses, 
+                    func.sum(StorageUsedSpace.max_used_space).label('total_used_space')
+                ).group_by(
+                    StorageUsedSpace.project_id,
+                    StorageUsedSpace.date,
+                    StorageUsedSpace.is_project_resourses
+                ).order_by(
+                    asc(StorageUsedSpace.date),                
+                )
+        if project_id:
+            query = query.filter(StorageUsedSpace.project_id == project_id)
+        if start_time:
+            query = query.filter(StorageUsedSpace.date >= start_time.isoformat())
+        if end_time:
+            query = query.filter(StorageUsedSpace.date <= end_time.isoformat())
+        query_results = query.all()
+        for result in query_results:
+            used_space.append(
+                {
+                    'project_id': result.project_id,
+                    'date': result.date.strftime("%d.%m.%Y"),
+                    'used_space': result.total_used_space,
+                    'is_project_resourses': result.is_project_resourses
+                }
+            )
+        return used_space
+
+    @web.rpc('usage_write_throughput_data_to_postgres', 'write_throughput_data_to_postgres')
+    @rpc_tools.wrap_exceptions(RuntimeError)    
+    def _write_throughput_data_to_postgres(self):
         monitor_data = []
-        for (project_id, is_local), bytes in self.minio_monitor.items():
+        for (project_id, is_local), _bytes in self.minio_monitor.items():
             if record := StorageThroughput.query.filter(
                 StorageThroughput.project_id == project_id,
                 StorageThroughput.date == date.today(),
                 StorageThroughput.is_project_resourses == is_local,
                 ).one_or_none():
-                    record.throughput += bytes
+                    record.throughput += _bytes
             else:
                 record = StorageThroughput(
                     project_id=project_id,
                     date=date.today(),
-                    throughput=bytes,
+                    throughput=_bytes,
                     is_project_resourses=is_local
                 )
             monitor_data.append(record)
         db_tools.bulk_save(monitor_data)
         self.minio_monitor = defaultdict(int)
+
+    @web.rpc('usage_write_used_space_data_to_postgres', 'write_used_space_data_to_postgres')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def _write_used_space_data_to_postgres(self):
+        monitor_data = []
+        for (project_id, integration_id, is_local), space in self.space_monitor.items():
+            if record := StorageUsedSpace.query.filter(
+                StorageUsedSpace.project_id == project_id,
+                StorageUsedSpace.integration_uid == integration_id,
+                StorageUsedSpace.date == date.today(),
+                StorageUsedSpace.is_project_resourses == is_local,
+                ).one_or_none():
+                    record.max_used_space = max(*space, record.max_used_space)
+            else:
+                if integration_id:
+                    project_integration_id = project_id if is_local else None
+                    integration_name = self.context.rpc_manager.call.integrations_get_by_id(
+                        project_integration_id, integration_id
+                    ).config['name']
+                else:
+                    if is_local:
+                        integration_name = self.context.rpc_manager.call.integrations_get_defaults(
+                            's3_integration').config['name']
+                    else:
+                        integration_name = self.context.rpc_manager.call.integrations_get_admin_defaults(
+                            's3_integration').config['name']
+                record = StorageUsedSpace(
+                    project_id=project_id,
+                    integration_name=integration_name,
+                    integration_uid=integration_id,
+                    date=date.today(),
+                    max_used_space=max(space),
+                    is_project_resourses=is_local
+                )
+            monitor_data.append(record)
+        db_tools.bulk_save(monitor_data)
+        self.space_monitor = defaultdict(list)
+
+    @web.rpc('usage_write_minio_monitor_data_to_postgres', 'write_minio_monitor_data_to_postgres')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def write_minio_monitor_data_to_postgres(self):
+        self.write_throughput_data_to_postgres()
+        self.write_used_space_data_to_postgres()

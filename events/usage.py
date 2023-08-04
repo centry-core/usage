@@ -87,3 +87,9 @@ class Event:
     @web.event('usage_throughput_monitor')
     def throughput_monitor(self, context, event, payload) -> None:
         self.minio_monitor[(payload['project_id'], payload['is_local'])] += payload['file_size']
+
+
+    @web.event('usage_space_monitor')
+    def throughput_monitor(self, context, event, payload) -> None:
+        self.space_monitor[(payload['project_id'], payload['integration_id'], 
+            payload['is_local'])].append(payload['used_space'])

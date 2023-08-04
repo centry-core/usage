@@ -36,6 +36,7 @@ class Module(module.ModuleModel):
         self.integrations = dict()
         self.sections = dict()
         self.minio_monitor = defaultdict(int)
+        self.space_monitor = defaultdict(list)
 
     def init(self):
         """ Init module """
