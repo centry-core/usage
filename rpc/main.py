@@ -243,15 +243,6 @@ class RPC:
     def _write_used_space_data_to_postgres(self):
         monitor_data = []
         for (project_id, integration_id, is_local), space in self.space_monitor.items():
-            # if not integration_id:
-            #     if project_id:
-            #         integration = self.context.rpc_manager.call.integrations_get_defaults(
-            #             project_id, 's3_integration')
-            #     else:
-            #         integration = self.context.rpc_manager.call.integrations_get_admin_defaults(
-            #             's3_integration')                    
-            #     integration_id = integration.id
-            #     is_local = bool(integration.project_id)
             if record := StorageUsedSpace.query.filter(
                 StorageUsedSpace.project_id == project_id,
                 StorageUsedSpace.integration_uid == str(integration_id),
@@ -261,16 +252,7 @@ class RPC:
                     max_delta = max(space['max_delta'] + record.current_delta, record.max_delta)
                     record.current_delta += space['current_delta']
                     record.max_delta = max_delta
-            else:            
-                # if not integration_id:
-                #     if project_id:
-                #         integration = self.context.rpc_manager.call.integrations_get_defaults(
-                #             project_id, 's3_integration')
-                #     else:
-                #         integration = self.context.rpc_manager.call.integrations_get_admin_defaults(
-                #             's3_integration') 
-                #     integration_id = integration.id
-                #     is_local = bool(integration.project_id)
+            else:
                 if project_id:
                     mc = MinioClient.from_project_id(project_id, integration_id, is_local)
                 else:
