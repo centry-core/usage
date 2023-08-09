@@ -90,6 +90,12 @@ class Event:
 
 
     @web.event('usage_space_monitor')
-    def throughput_monitor(self, context, event, payload) -> None:
-        self.space_monitor[(payload['project_id'], payload['integration_id'], 
-            payload['is_local'])].append(payload['used_space'])
+    def space_monitor(self, context, event, payload) -> None:
+        self.space_monitor[(payload['project_id'], str(payload['integration_id']), 
+            payload['is_local'])]['current_delta'] += payload['current_delta']
+        max_delta = self.space_monitor[(payload['project_id'], str(payload['integration_id']), 
+            payload['is_local'])]['max_delta']
+        current_delta = self.space_monitor[(payload['project_id'], str(payload['integration_id']), 
+            payload['is_local'])]['current_delta']
+        self.space_monitor[(payload['project_id'], str(payload['integration_id']), 
+            payload['is_local'])]['max_delta'] = max(max_delta, current_delta)

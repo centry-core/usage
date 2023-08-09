@@ -13,6 +13,13 @@ from tools import rpc_tools, db_tools, MinioClient, MinioClientAdmin
 from pylon.core.tools import web, log
 
 
+def _get_storage_size(client):
+    buckets = client.list_bucket()
+    storage_size = 0
+    for bucket in buckets:
+        storage_size += client.get_bucket_size(bucket)
+    return storage_size
+
 class RPC:
     @web.rpc('usage_get_resource_usage', 'get_resource_usage')
     @rpc_tools.wrap_exceptions(RuntimeError)
@@ -77,7 +84,10 @@ class RPC:
                 mc = MinioClient.from_project_id(project_id, integration.id, False)
             else:
                 mc = MinioClientAdmin(integration_id=integration.id)
-            buckets = mc.list_bucket()
+            try:
+                buckets = mc.list_bucket()
+            except Exception:
+                continue
             for bucket in buckets:
                 bucket_size = mc.get_bucket_size(bucket)
                 try:
@@ -107,7 +117,10 @@ class RPC:
         bucket_usage = []
         for integration in integrations:
             mc = MinioClient.from_project_id(project_id, integration.id, True)
-            buckets = mc.list_bucket()
+            try:
+                buckets = mc.list_bucket()
+            except Exception:
+                continue
             for bucket in buckets:
                 bucket_size = mc.get_bucket_size(bucket)
                 try:
@@ -229,40 +242,96 @@ class RPC:
     def _write_used_space_data_to_postgres(self):
         monitor_data = []
         for (project_id, integration_id, is_local), space in self.space_monitor.items():
+            # if not integration_id:
+            #     if project_id:
+            #         integration = self.context.rpc_manager.call.integrations_get_defaults(
+            #             project_id, 's3_integration')
+            #     else:
+            #         integration = self.context.rpc_manager.call.integrations_get_admin_defaults(
+            #             's3_integration')                    
+            #     integration_id = integration.id
+            #     is_local = bool(integration.project_id)
             if record := StorageUsedSpace.query.filter(
                 StorageUsedSpace.project_id == project_id,
-                StorageUsedSpace.integration_uid == integration_id,
+                StorageUsedSpace.integration_uid == str(integration_id),
                 StorageUsedSpace.date == date.today(),
                 StorageUsedSpace.is_project_resourses == is_local,
                 ).one_or_none():
-                    record.max_used_space = max(*space, record.max_used_space)
-            else:
-                if integration_id:
-                    project_integration_id = project_id if is_local else None
-                    integration_name = self.context.rpc_manager.call.integrations_get_by_id(
-                        project_integration_id, integration_id
-                    ).config['name']
+                    max_delta = max(space['max_delta'] + record.current_delta, record.max_delta)
+                    record.current_delta += space['current_delta']
+                    record.max_delta = max_delta
+            else:            
+                # if not integration_id:
+                #     if project_id:
+                #         integration = self.context.rpc_manager.call.integrations_get_defaults(
+                #             project_id, 's3_integration')
+                #     else:
+                #         integration = self.context.rpc_manager.call.integrations_get_admin_defaults(
+                #             's3_integration') 
+                #     integration_id = integration.id
+                #     is_local = bool(integration.project_id)
+                if project_id:
+                    mc = MinioClient.from_project_id(project_id, integration_id, is_local)
                 else:
-                    if is_local:
-                        integration_name = self.context.rpc_manager.call.integrations_get_defaults(
-                            's3_integration').config['name']
-                    else:
-                        integration_name = self.context.rpc_manager.call.integrations_get_admin_defaults(
-                            's3_integration').config['name']
+                    mc = MinioClientAdmin(integration_id=integration_id)
+                storage_size = _get_storage_size(mc)
                 record = StorageUsedSpace(
                     project_id=project_id,
-                    integration_name=integration_name,
-                    integration_uid=integration_id,
+                    integration_uid=str(integration_id),
                     date=date.today(),
-                    max_used_space=max(space),
-                    is_project_resourses=is_local
+                    used_space=storage_size,
+                    is_project_resourses=is_local,
                 )
             monitor_data.append(record)
         db_tools.bulk_save(monitor_data)
-        self.space_monitor = defaultdict(list)
+        self.space_monitor = defaultdict(lambda: defaultdict(int))
 
     @web.rpc('usage_write_minio_monitor_data_to_postgres', 'write_minio_monitor_data_to_postgres')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def write_minio_monitor_data_to_postgres(self):
         self.write_throughput_data_to_postgres()
         self.write_used_space_data_to_postgres()
+
+    @web.rpc('usage_storage_used_space_check', 'storage_used_space_check')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def storage_used_space_check(self):
+        projects = self.context.rpc_manager.call.project_list()
+        monitor_data = []
+        for project in projects:
+            integrations = self.context.rpc_manager.call.integrations_get_all_integrations_by_name(
+                project_id=project['id'], integration_name='s3_integration'
+            )
+            for integration in integrations:
+                try:
+                    mc = MinioClient.from_project_id(project['id'], integration.id, True)
+                    storage_size = _get_storage_size(mc)
+                except Exception:
+                    continue
+                record = StorageUsedSpace(
+                    project_id=project['id'],
+                    integration_name=integration.config['name'],
+                    integration_uid=str(integration.id),
+                    date=date.today(),
+                    used_space=storage_size,
+                    is_project_resourses=bool(integration.project_id)
+                )
+                monitor_data.append(record)
+        admin_integrations = self.context.rpc_manager.call.integrations_get_administration_integrations_by_name(
+            integration_name='s3_integration', only_shared=False
+        )
+        for integration in admin_integrations:
+            try:
+                mc = MinioClientAdmin(integration_id=integration.id)
+                storage_size = _get_storage_size(mc)
+            except Exception:
+                continue
+            record = StorageUsedSpace(
+                project_id=None,
+                integration_name=integration.config['name'],
+                integration_uid=str(integration.id),
+                date=date.today(),
+                used_space=storage_size,
+                is_project_resourses=False
+            )
+            monitor_data.append(record)
+        db_tools.bulk_save(monitor_data)

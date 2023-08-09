@@ -13,13 +13,16 @@
 #     limitations under the License.
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, Date, Boolean
+from sqlalchemy import Column, Integer, Date, Boolean, UniqueConstraint
 
 from tools import db, db_tools, rpc_tools
 
 
 class StorageThroughput(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     __tablename__ = "storage_throughput"
+    __table_args__ = (
+        UniqueConstraint("project_id", "date", "is_project_resourses"),
+    )
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, unique=False, nullable=True)

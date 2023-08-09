@@ -17,9 +17,12 @@
 
 """ Module """
 from collections import defaultdict
+from datetime import date
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module
+
+from .models.storage_used_space import StorageUsedSpace
 
 from .init_db import init_db
 
@@ -36,7 +39,6 @@ class Module(module.ModuleModel):
         self.integrations = dict()
         self.sections = dict()
         self.minio_monitor = defaultdict(int)
-        self.space_monitor = defaultdict(list)
 
     def init(self):
         """ Init module """
@@ -77,7 +79,25 @@ class Module(module.ModuleModel):
         #     # icon_class="fas fa-server fa-fw",
         #     # weight=2,
         # )
+        self.space_monitor = defaultdict(lambda: defaultdict(int))
 
+        self.create_storage_throughput_monitor()
+        self.create_storage_used_space_check()
+
+    # def get_storage_space_data(self):
+    #     space_monitor = defaultdict(lambda: defaultdict(int))
+    #     space_data = StorageUsedSpace.query.filter(
+    #         StorageUsedSpace.date == date.today()
+    #         ).all()
+    #     for record in space_data:
+    #         space_monitor[(record.project_id, record.integration_uid, 
+    #             record.is_project_resourses)]['current_delta'] = record.current_delta
+    #         space_monitor[(record.project_id, record.integration_uid, 
+    #             record.is_project_resourses)]['max_delta'] = record.max_delta
+    #     log.info(f'--------{space_monitor=}')
+    #     return space_monitor
+
+    def create_storage_throughput_monitor(self):
         schedule_data = {
             'name': 'storage_throughput_monitor',
             'cron': '*/3 * * * *',
@@ -85,6 +105,13 @@ class Module(module.ModuleModel):
         }
         self.context.rpc_manager.call.scheduling_create_if_not_exists(schedule_data)
 
+    def create_storage_used_space_check(self):
+        schedule_data = {
+            'name': 'storage_used_space_check',
+            'cron': '0 0 * * *',
+            'rpc_func': 'usage_storage_used_space_check'
+        }
+        self.context.rpc_manager.call.scheduling_create_if_not_exists(schedule_data)
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
