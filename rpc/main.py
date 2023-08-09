@@ -189,7 +189,8 @@ class RPC:
                     StorageUsedSpace.project_id,
                     StorageUsedSpace.date,
                     StorageUsedSpace.is_project_resourses, 
-                    func.sum(StorageUsedSpace.max_used_space).label('total_used_space')
+                    func.sum(StorageUsedSpace.used_space + 
+                             StorageUsedSpace.max_delta).label('total_used_space')
                 ).group_by(
                     StorageUsedSpace.project_id,
                     StorageUsedSpace.date,
