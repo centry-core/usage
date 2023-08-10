@@ -39,7 +39,7 @@ class RPC:
             query = query.filter(ResourceUsage.start_time >= start_time.isoformat())
         if end_time:
             query = query.filter(ResourceUsage.start_time <= end_time.isoformat())
-        query_results = query.all()
+        query_results = query.order_by(asc(ResourceUsage.start_time)).all()
         for result in query_results:
             # Exclude tasks which run as a part of a test:
             if result.type == 'task' and result.test_report_id:
