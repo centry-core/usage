@@ -86,16 +86,17 @@ class Event:
 
     @web.event('usage_throughput_monitor')
     def throughput_monitor(self, context, event, payload) -> None:
-        self.minio_monitor[(payload['project_id'], payload['is_local'])] += payload['file_size']
+        self.throughput_monitor_data[(payload['project_id'], str(payload['integration_id']), 
+            payload['is_local'])] += payload['file_size']
 
 
     @web.event('usage_space_monitor')
     def space_monitor(self, context, event, payload) -> None:
-        self.space_monitor[(payload['project_id'], str(payload['integration_id']), 
+        self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
             payload['is_local'])]['current_delta'] += payload['current_delta']
-        max_delta = self.space_monitor[(payload['project_id'], str(payload['integration_id']), 
+        max_delta = self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
             payload['is_local'])]['max_delta']
-        current_delta = self.space_monitor[(payload['project_id'], str(payload['integration_id']), 
+        current_delta = self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
             payload['is_local'])]['current_delta']
-        self.space_monitor[(payload['project_id'], str(payload['integration_id']), 
+        self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
             payload['is_local'])]['max_delta'] = max(max_delta, current_delta)

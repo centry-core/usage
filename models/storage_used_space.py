@@ -32,6 +32,7 @@ class StorageUsedSpace(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     used_space = Column(Integer, unique=False, default=0)
     current_delta = Column(Integer, unique=False, default=0)
     max_delta = Column(Integer, unique=False, default=0)
+    throughput = Column(Integer, unique=False, default=0)
     is_project_resourses = Column(Boolean, unique=False, nullable=False, default=True)
 
     @property

@@ -38,7 +38,9 @@ class Module(module.ModuleModel):
 
         self.integrations = dict()
         self.sections = dict()
-        self.minio_monitor = defaultdict(int)
+        
+        self.throughput_monitor_data = defaultdict(int)
+        self.space_monitor_data = defaultdict(lambda: defaultdict(int))
 
     def init(self):
         """ Init module """
@@ -79,7 +81,6 @@ class Module(module.ModuleModel):
         #     # icon_class="fas fa-server fa-fw",
         #     # weight=2,
         # )
-        self.space_monitor = defaultdict(lambda: defaultdict(int))
 
         self.create_storage_throughput_monitor()
         self.create_storage_used_space_check()
