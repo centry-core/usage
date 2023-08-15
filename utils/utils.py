@@ -1,8 +1,9 @@
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 import calendar
 from itertools import groupby
 
 from pylon.core.tools import log
+from tools import VaultClient
 
 
 def calculate_vcu(cpu: int, memory: int, duration: int) -> int:
@@ -39,9 +40,13 @@ def vcu_group_by_date(resource_usage):
             } for k, v in usage_by_date.items()]
 
 
-def group_by_date(data: list, number_group_weeks: int=90, number_group_months: int=365):
+def group_by_date(data: list):
+    vault_client = VaultClient()
+    secrets = vault_client.get_all_secrets()
+    usage_days_to_group_by_weeks = secrets.get('usage_days_to_group_by_weeks', 90)
+    usage_default_days_to_group_by_months = secrets.get('usage_default_days_to_group_by_months', 365)
     duration = len(data)
-    if duration > number_group_months:
+    if duration > usage_default_days_to_group_by_months:
         result = []
         func = lambda x: datetime.strptime(x['date'], "%d.%m.%Y").month
         for key, group in groupby(data, func):
@@ -53,13 +58,11 @@ def group_by_date(data: list, number_group_weeks: int=90, number_group_months: i
                     cumulative[k] = cumulative.get(k, 0) + v
             result.append({
                 'project_id': project_id,
-                'year': datetime.strptime(date_, "%d.%m.%Y").year,
-                'month': calendar.month_abbr[key],
-                'month_number': key,
+                'date': f'{calendar.month_abbr[key]} {datetime.strptime(date_, "%d.%m.%Y").year}',
                 **cumulative
             })
         return result
-    elif duration > number_group_weeks:
+    elif duration > usage_days_to_group_by_weeks:
         result = []
         func = lambda x: datetime.strptime(x['date'], "%d.%m.%Y").isocalendar()[1]
         for key, group in groupby(data, func):
@@ -73,8 +76,7 @@ def group_by_date(data: list, number_group_weeks: int=90, number_group_months: i
                     cumulative[k] = cumulative.get(k, 0) + v
             result.append({
                 'project_id': project_id,
-                'week_first_day': first_day,
-                'week_number': key,
+                'date': first_day,
                 **cumulative
             })
         return result

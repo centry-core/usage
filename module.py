@@ -26,7 +26,7 @@ from .models.storage_used_space import StorageUsedSpace
 
 from .init_db import init_db
 
-from tools import theme
+from tools import theme, VaultClient
 
 
 class Module(module.ModuleModel):
@@ -85,18 +85,14 @@ class Module(module.ModuleModel):
         self.create_storage_throughput_monitor()
         self.create_storage_used_space_check()
 
-    # def get_storage_space_data(self):
-    #     space_monitor = defaultdict(lambda: defaultdict(int))
-    #     space_data = StorageUsedSpace.query.filter(
-    #         StorageUsedSpace.date == date.today()
-    #         ).all()
-    #     for record in space_data:
-    #         space_monitor[(record.project_id, record.integration_uid, 
-    #             record.is_project_resourses)]['current_delta'] = record.current_delta
-    #         space_monitor[(record.project_id, record.integration_uid, 
-    #             record.is_project_resourses)]['max_delta'] = record.max_delta
-    #     log.info(f'--------{space_monitor=}')
-    #     return space_monitor
+        vault_client = VaultClient()
+        secrets = vault_client.get_all_secrets()
+        if 'usage_days_to_group_by_weeks' not in secrets:
+            secrets['usage_days_to_group_by_weeks'] = 90
+        if 'usage_days_to_group_by_months' not in secrets:
+            secrets['usage_days_to_group_by_months'] = 365
+        vault_client.set_secrets(secrets)
+
 
     def create_storage_throughput_monitor(self):
         schedule_data = {

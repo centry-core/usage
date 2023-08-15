@@ -5,7 +5,6 @@ from hurry.filesize import size
 from sqlalchemy import func, asc, desc, case
 
 from ..models.resource_usage import ResourceUsage
-from ..models.storage_throughput import StorageThroughput
 from ..models.storage_used_space import StorageUsedSpace
 from ..utils.utils import calculate_readable_retention_policy
 
@@ -140,42 +139,6 @@ class RPC:
                     }
                 )
         return bucket_usage
-
-    @web.rpc('usage_get_storage_throughput', 'get_storage_throughput')
-    @rpc_tools.wrap_exceptions(RuntimeError)
-    def get_storage_throughput(
-            self, project_id: int | None = None,
-            start_time: datetime | None = None,
-            end_time: datetime | None = None
-            ):
-        throughput = []
-        query = StorageThroughput.query.with_entities(
-                    StorageThroughput.project_id,
-                    StorageThroughput.date,
-                    func.sum(StorageThroughput.throughput).label('total_throughput')
-                ).group_by(
-                    StorageThroughput.project_id,
-                    StorageThroughput.date,
-                ).order_by(
-                    asc(StorageThroughput.date),                
-                )
-        if project_id:
-            query = query.filter(StorageThroughput.project_id == project_id)
-        if start_time:
-            query = query.filter(StorageThroughput.date >= start_time.isoformat())
-        if end_time:
-            query = query.filter(StorageThroughput.date <= end_time.isoformat())
-        query_results = query.all()
-        for result in query_results:
-            throughput.append(
-                {
-                    'project_id': result.project_id,
-                    'date': result.date.strftime("%d.%m.%Y"),
-                    'throughput': size(result.total_throughput),
-                    'raw_size': result.total_throughput,
-                }
-            )
-        return throughput
 
     @web.rpc('usage_get_storage_used_space', 'get_storage_used_space')
     @rpc_tools.wrap_exceptions(RuntimeError)
