@@ -5,7 +5,7 @@ from flask import request
 from pylon.core.tools import log
 
 from tools import auth, api_tools
-from ...utils.utils import vcu_group_by_date, group_by_date
+from ...utils.utils import vcu_usage_by_date, group_by_date
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -18,7 +18,7 @@ class ProjectAPI(api_tools.APIModeHandler):
         if end_time := request.args.get('end_time'):
             end_time = datetime.fromisoformat(end_time.strip('Z'))
         resource_usage = self.module.get_resource_usage(project_id, start_time, end_time)
-        usage_by_date = group_by_date(vcu_group_by_date(resource_usage))
+        usage_by_date = group_by_date(vcu_usage_by_date(resource_usage))
         return {
             'total': len(resource_usage), 
             'rows': resource_usage,

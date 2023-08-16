@@ -6,7 +6,7 @@ from datetime import datetime
 from tools import  api_tools, auth
 from pylon.core.tools import log
 
-from ...utils.utils import group_by_date
+from ...utils.utils import group_by_date_for_storage
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -37,8 +37,9 @@ class API(api_tools.APIBase):
         if end_time := request.args.get('end_time'):
             end_time = datetime.fromisoformat(end_time.strip('Z'))
         used_space = self.module.get_storage_used_space(project_id, start_time, end_time)
-        used_space = group_by_date(used_space)
+        used_space = group_by_date_for_storage(used_space)
         return {
             'total': len(used_space), 
             'rows': used_space,
+            'total_throughput': sum(i['throughput'] for i in used_space)
             }, 200

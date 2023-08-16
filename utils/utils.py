@@ -15,7 +15,7 @@ def calculate_extras(vcu: float) -> int:
     return round(vcu * 0.1, 2)
 
 
-def vcu_group_by_date(resource_usage):
+def vcu_usage_by_date(resource_usage):
     if not resource_usage:
         return []
     project_id = resource_usage[0]['project_id']
@@ -40,13 +40,18 @@ def vcu_group_by_date(resource_usage):
             } for k, v in usage_by_date.items()]
 
 
-def group_by_date(data: list):
+def _get_settings_from_secrets():
     vault_client = VaultClient()
     secrets = vault_client.get_all_secrets()
     usage_days_to_group_by_weeks = secrets.get('usage_days_to_group_by_weeks', 90)
-    usage_default_days_to_group_by_months = secrets.get('usage_default_days_to_group_by_months', 365)
+    usage_days_to_group_by_months = secrets.get('usage_days_to_group_by_months', 365)
+    return usage_days_to_group_by_weeks, usage_days_to_group_by_months
+
+
+def group_by_date(data: list):
+    group_by_weeks, group_by_months = _get_settings_from_secrets()
     duration = len(data)
-    if duration > usage_default_days_to_group_by_months:
+    if duration > group_by_months:
         result = []
         func = lambda x: datetime.strptime(x['date'], "%d.%m.%Y").month
         for key, group in groupby(data, func):
@@ -62,7 +67,7 @@ def group_by_date(data: list):
                 **cumulative
             })
         return result
-    elif duration > usage_days_to_group_by_weeks:
+    elif duration > group_by_weeks:
         result = []
         func = lambda x: datetime.strptime(x['date'], "%d.%m.%Y").isocalendar()[1]
         for key, group in groupby(data, func):
@@ -78,6 +83,49 @@ def group_by_date(data: list):
                 'project_id': project_id,
                 'date': first_day,
                 **cumulative
+            })
+        return result
+    else:
+        return data
+
+
+def group_by_date_for_storage(data: list):
+    group_by_weeks, group_by_months = _get_settings_from_secrets()
+    duration = len(data)
+    if duration > group_by_months:
+        result = []
+        func = lambda x: datetime.strptime(x['date'], "%d.%m.%Y").month
+        for key, group in groupby(data, func):
+            group = list(group)
+            max_platform_storage = max(item['platform_storage'] for item in group)
+            max_project_storage = max(item['project_storage'] for item in group)
+            sum_throughput = sum(item['throughput'] for item in group)
+            date_ = group[0]['date']
+            project_id = group[0]['project_id']
+            result.append({
+                'project_id': project_id,
+                'date': f'{calendar.month_abbr[key]} {datetime.strptime(date_, "%d.%m.%Y").year}',
+                'platform_storage': max_platform_storage,
+                'project_storage': max_project_storage,
+                'throughput': sum_throughput
+            })
+        return result
+    elif duration > group_by_weeks:
+        result = []
+        func = lambda x: datetime.strptime(x['date'], "%d.%m.%Y").isocalendar()[1]
+        for key, group in groupby(data, func):
+            group = list(group)
+            max_platform_storage = max([item['platform_storage'] for item in group])
+            max_project_storage = max([item['project_storage'] for item in group])
+            sum_throughput = sum(item['throughput'] for item in group)
+            date_ = group[0]['date']
+            project_id = group[0]['project_id']
+            result.append({
+                'project_id': project_id,
+                'date': date_,
+                'platform_storage': max_platform_storage,
+                'project_storage': max_project_storage,
+                'throughput': sum_throughput
             })
         return result
     else:
