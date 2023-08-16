@@ -41,5 +41,5 @@ class API(api_tools.APIBase):
         return {
             'total': len(used_space), 
             'rows': used_space,
-            'total_throughput': sum(i['throughput'] for i in used_space)
+            'total_throughput': size(sum(i['throughput'] for i in used_space))
             }, 200
