@@ -18,8 +18,8 @@ from sqlalchemy import Column, Integer, Date, Boolean, String, UniqueConstraint
 from tools import db, db_tools, rpc_tools
 
 
-class StorageUsedSpace(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
-    __tablename__ = "storage_used_space"
+class UsageStorage(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
+    __tablename__ = "usage_storage"
     __table_args__ = (
         UniqueConstraint("project_id", "date", "integration_uid", "is_project_resourses"),
     )

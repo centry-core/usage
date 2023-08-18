@@ -1,11 +1,13 @@
 from collections import defaultdict
-from typing import Union, Optional
+from typing import Union, Optional, List
 from datetime import datetime, date
 from hurry.filesize import size
 from sqlalchemy import func, asc, desc, case
+from pydantic import parse_obj_as
 
-from ..models.resource_usage import ResourceUsage
-from ..models.storage_used_space import StorageUsedSpace
+from ..models.usage_vcu import UsageVCU
+from ..models.usage_storage import UsageStorage
+from ..models.usage_api import UsageAPI
 from ..utils.utils import calculate_readable_retention_policy
 
 from tools import rpc_tools, db_tools, MinioClient, MinioClientAdmin
@@ -29,16 +31,16 @@ class RPC:
             ):
         resource_usage = []
         if project_id:
-            query = ResourceUsage.query.filter(
-                ResourceUsage.project_id == project_id
+            query = UsageVCU.query.filter(
+                UsageVCU.project_id == project_id
                 )
         else:
-            query = ResourceUsage.query
+            query = UsageVCU.query
         if start_time:
-            query = query.filter(ResourceUsage.start_time >= start_time.isoformat())
+            query = query.filter(UsageVCU.start_time >= start_time.isoformat())
         if end_time:
-            query = query.filter(ResourceUsage.start_time <= end_time.isoformat())
-        query_results = query.order_by(asc(ResourceUsage.start_time)).all()
+            query = query.filter(UsageVCU.start_time <= end_time.isoformat())
+        query_results = query.order_by(asc(UsageVCU.start_time)).all()
         for result in query_results:
             # Exclude tasks which run as a part of a test:
             if result.type == 'task' and result.test_report_id:
@@ -60,10 +62,10 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def update_test_resource_usage(self, project_id: int, report_data: dict):
         report_id = report_data.pop('report_id')
-        resources = ResourceUsage.query.filter(
-            ResourceUsage.project_id == project_id,
-            ResourceUsage.type == 'test',
-            ResourceUsage.test_report_id == report_id
+        resources = UsageVCU.query.filter(
+            UsageVCU.project_id == project_id,
+            UsageVCU.type == 'test',
+            UsageVCU.test_report_id == report_id
             ).first()
         resource_usage = list(resources.resource_usage)
         resource_usage.append(report_data)
@@ -147,32 +149,32 @@ class RPC:
             start_time: datetime | None = None,
             end_time: datetime | None = None
             ):
-        subquery = StorageUsedSpace.query.with_entities(
-                    StorageUsedSpace.project_id,
-                    StorageUsedSpace.date,
-                    func.sum(StorageUsedSpace.throughput).label('throughput'),
-                    case((StorageUsedSpace.is_project_resourses == True, 
-                           func.sum(StorageUsedSpace.used_space + StorageUsedSpace.max_delta)), 
+        subquery = UsageStorage.query.with_entities(
+                    UsageStorage.project_id,
+                    UsageStorage.date,
+                    func.sum(UsageStorage.throughput).label('throughput'),
+                    case((UsageStorage.is_project_resourses == True, 
+                           func.sum(UsageStorage.used_space + UsageStorage.max_delta)), 
                            else_=0).label('project_storage'),
-                    case((StorageUsedSpace.is_project_resourses == False, 
-                           func.sum(StorageUsedSpace.used_space + StorageUsedSpace.max_delta)), 
+                    case((UsageStorage.is_project_resourses == False, 
+                           func.sum(UsageStorage.used_space + UsageStorage.max_delta)), 
                            else_=0).label('platform_storage'),
                 ).group_by(
-                    StorageUsedSpace.project_id,
-                    StorageUsedSpace.date,
-                    StorageUsedSpace.is_project_resourses
+                    UsageStorage.project_id,
+                    UsageStorage.date,
+                    UsageStorage.is_project_resourses
                 )
         
         if project_id:
-            subquery = subquery.filter(StorageUsedSpace.project_id == project_id)
+            subquery = subquery.filter(UsageStorage.project_id == project_id)
         if start_time:
-            subquery = subquery.filter(StorageUsedSpace.date >= start_time.isoformat())
+            subquery = subquery.filter(UsageStorage.date >= start_time.isoformat())
         if end_time:
-            subquery = subquery.filter(StorageUsedSpace.date <= end_time.isoformat())
+            subquery = subquery.filter(UsageStorage.date <= end_time.isoformat())
 
         subquery = subquery.subquery()
 
-        query = StorageUsedSpace.query.with_entities(
+        query = UsageStorage.query.with_entities(
                     subquery.c.project_id,
                     subquery.c.date,
                     func.sum(subquery.c.project_storage).label('project_storage'),
@@ -205,11 +207,11 @@ class RPC:
     def _write_throughput_data_to_postgres(self):
         monitor_data = []
         for (project_id, integration_id, is_local), _bytes in self.throughput_monitor_data.items():
-            if record := StorageUsedSpace.query.filter(
-                StorageUsedSpace.project_id == project_id,
-                StorageUsedSpace.integration_uid == str(integration_id),
-                StorageUsedSpace.date == date.today(),
-                StorageUsedSpace.is_project_resourses == is_local,
+            if record := UsageStorage.query.filter(
+                UsageStorage.project_id == project_id,
+                UsageStorage.integration_uid == str(integration_id),
+                UsageStorage.date == date.today(),
+                UsageStorage.is_project_resourses == is_local,
                 ).one_or_none():
                     record.throughput += _bytes
             else:
@@ -218,7 +220,7 @@ class RPC:
                 else:
                     mc = MinioClientAdmin(integration_id=integration_id)
                 storage_size = _get_storage_size(mc)
-                record = StorageUsedSpace(
+                record = UsageStorage(
                     project_id=project_id,
                     integration_uid=str(integration_id),
                     date=date.today(),
@@ -230,16 +232,17 @@ class RPC:
         db_tools.bulk_save(monitor_data)
         self.throughput_monitor_data = defaultdict(int)
 
+
     @web.rpc('usage_write_used_space_data_to_postgres', 'write_used_space_data_to_postgres')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def _write_used_space_data_to_postgres(self):
         monitor_data = []
         for (project_id, integration_id, is_local), space in self.space_monitor_data.items():
-            if record := StorageUsedSpace.query.filter(
-                StorageUsedSpace.project_id == project_id,
-                StorageUsedSpace.integration_uid == str(integration_id),
-                StorageUsedSpace.date == date.today(),
-                StorageUsedSpace.is_project_resourses == is_local,
+            if record := UsageStorage.query.filter(
+                UsageStorage.project_id == project_id,
+                UsageStorage.integration_uid == str(integration_id),
+                UsageStorage.date == date.today(),
+                UsageStorage.is_project_resourses == is_local,
                 ).one_or_none():
                     max_delta = max(space['max_delta'] + record.current_delta, record.max_delta)
                     record.current_delta += space['current_delta']
@@ -250,7 +253,7 @@ class RPC:
                 else:
                     mc = MinioClientAdmin(integration_id=integration_id)
                 storage_size = _get_storage_size(mc)
-                record = StorageUsedSpace(
+                record = UsageStorage(
                     project_id=project_id,
                     integration_uid=str(integration_id),
                     date=date.today(),
@@ -261,11 +264,35 @@ class RPC:
         db_tools.bulk_save(monitor_data)
         self.space_monitor_data = defaultdict(lambda: defaultdict(int))
 
-    @web.rpc('usage_write_minio_monitor_data_to_postgres', 'write_minio_monitor_data_to_postgres')
+    @web.rpc('usage_write_api_data_to_postgres', 'write_api_data_to_postgres')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def write_minio_monitor_data_to_postgres(self):
+    def _write_api_data_to_postgres(self):
+        monitor_data = []
+        for api_call in self.api_monitor_data:
+            record = UsageAPI(
+                project_id=api_call.get('project_id'),
+                mode=api_call.get('mode'),
+                user=api_call.get('user'),
+                endpoint=api_call.get('endpoint'),
+                method=api_call.get('method'),
+                date=api_call.get('date'),
+                view_args=api_call.get('view_args'),
+                query_params=api_call.get('query_params'),
+                json=api_call.get('json'),
+                files=api_call.get('files'),
+                run_time=api_call.get('run_time'),
+                status_code=api_call.get('status_code'),
+            )
+            monitor_data.append(record)
+        db_tools.bulk_save(monitor_data)
+        self.api_monitor_data = []
+
+    @web.rpc('usage_write_monitor_data_to_database', 'write_monitor_data_to_database')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def write_monitor_data_to_database(self):
         self.write_used_space_data_to_postgres()
         self.write_throughput_data_to_postgres()
+        self.write_api_data_to_postgres()
 
     @web.rpc('usage_storage_used_space_check', 'storage_used_space_check')
     @rpc_tools.wrap_exceptions(RuntimeError)
@@ -283,7 +310,7 @@ class RPC:
                     storage_size = _get_storage_size(mc)
                 except Exception:
                     continue
-                record = StorageUsedSpace(
+                record = UsageStorage(
                     project_id=project['id'],
                     integration_name=integration.config['name'],
                     integration_uid=str(integration.id),
@@ -301,7 +328,7 @@ class RPC:
                 storage_size = _get_storage_size(mc)
             except Exception:
                 continue
-            record = StorageUsedSpace(
+            record = UsageStorage(
                 project_id=None,
                 integration_name=integration.config['name'],
                 integration_uid=str(integration.id),

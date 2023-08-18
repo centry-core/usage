@@ -2,7 +2,7 @@ from typing import Union, Optional
 import json
 from datetime import datetime
 
-from ..models.resource_usage import ResourceUsage
+from ..models.usage_vcu import UsageVCU
 
 from pylon.core.tools import web, log
 
@@ -23,7 +23,7 @@ class Event:
                 if integration.id == cloud_settings['id'] and not cloud_settings['project_id']:
                     is_project_resourses = False
                     break
-        resource_usage_test = ResourceUsage(
+        resource_usage_test = UsageVCU(
             project_id = payload['project_id'],
             name = payload['name'],
             type = 'test',
@@ -43,7 +43,7 @@ class Event:
     def create_task_resource_usage(self, context, event, payload):
         is_cloud = False  # TODO: must change it when we will be able to run tasks in clouds
         is_project_resourses = False
-        resource_usage_task = ResourceUsage(
+        resource_usage_task = UsageVCU(
             project_id = payload['project_id'],
             name = payload['task_name'],
             type = 'task',
@@ -62,8 +62,8 @@ class Event:
 
     @web.event(f"task_finished")
     def update_task_resource_usage(self, context, event, payload):
-        resource_usage_task = ResourceUsage.query.filter(
-            ResourceUsage.task_result_id == payload['id']
+        resource_usage_task = UsageVCU.query.filter(
+            UsageVCU.task_result_id == payload['id']
             ).first()
         resource_usage_task.duration = round(payload['task_duration'])
         resource_usage = {
@@ -89,7 +89,6 @@ class Event:
         self.throughput_monitor_data[(payload['project_id'], str(payload['integration_id']), 
             payload['is_local'])] += payload['file_size']
 
-
     @web.event('usage_space_monitor')
     def space_monitor(self, context, event, payload) -> None:
         self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
@@ -100,3 +99,7 @@ class Event:
             payload['is_local'])]['current_delta']
         self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
             payload['is_local'])]['max_delta'] = max(max_delta, current_delta)
+
+    @web.event('usage_api_monitor')
+    def api_monitor(self, context, event, payload) -> None:
+        self.api_monitor_data.append(payload)
