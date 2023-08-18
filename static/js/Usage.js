@@ -1,385 +1,359 @@
 const Usage = {
     components: {
-        'usage-modal-v-c-u': UsageModalVCU
+        'usage-modal-limits': UsageModalLimits,
+        'usage-table': UsageTable,
+        'storage-table': StorageTable,
+        'table-card': TableCard,
+        'usage-chart': UsageChart,
+        'usage-filled-line': UsageFilledLine,
+        UsageBillingCards,
     },
     data() {
+        const initialEndTime = new Date().toLocaleDateString()
+        const initialStartTime = (() => {
+            let d = new Date();
+            d.setMonth(d.getMonth() - 1);
+            return d.toLocaleDateString();
+        })()
         return {
-            start_time: null,
+            initialStartTime: (() => {
+                const d = initialStartTime.split('/');
+                return `${d[1]}/${d[0]}/${d[2]}`
+            })(),
+            initialEndTime: (() => {
+                const d = initialEndTime.split('/');
+                return `${d[1]}/${d[0]}/${d[2]}`
+            })(),
+            startTime: initialStartTime.split('/').reverse().join('-'),
+            endTime: initialEndTime.split('/').reverse().join('-'),
+            bucketUsageData: null,
+            throughputData: null,
+            storageSpaceData: null,
+            throughputField: null,
+            vcuTableByActions: null,
+            vcuTableByDate: null,
+            storageLimitTotalBlock: false,
+            vcuLimitTotalBlock: false,
+            noDataVcuChart: true,
+            noDataStorageChart: true,
             VCU: {
-                max: 5000,
-                current: 2500,
-                limit: 4700,
+                platform: null,
+                project: null,
+                softLimit: null,
+                hardLimit: null,
             },
             STORAGE: {
-                max: 50,
-                current: 45,
-                limit: 25,
+                platform: null,
+                platformReadable: null,
+                project: null,
+                projectReadable: null,
+                softLimit: null,
+                hardLimit: null,
             },
             isLoadingVCU: true,
             vcuChart: null,
             storageChart: null,
-            vcuLabel: ['01', '02', '03', '04', '05', '06', '07'],
-            vcuDatasets: [
-                {
-                    label: 'VCU 1',
-                    data: [65, 59, 80, 81, 56, 55, 40],
-                    fill: false,
-                    borderColor: '#29B8F5',
-                    tension: 0.1
-                },
-                {
-                    label: 'VCU 2',
-                    data: [5, 33, 60, 61, 86, 35, 10],
-                    fill: false,
-                    borderColor: '#A2ECCD',
-                    tension: 0.1
-                }
-            ],
-            storageDatasets: [
-                {
-                    label: 'STORAGE 1',
-                    data: [65, 59, 80, 81, 56, 55, 40],
-                    fill: false,
-                    borderColor: '#29B8F5',
-                    tension: 0.1
-                },
-                {
-                    label: 'STORAGE 2',
-                    data: [5, 33, 60, 61, 86, 35, 10],
-                    fill: false,
-                    borderColor: '#A2ECCD',
-                    tension: 0.1
-                },
-                {
-                    label: 'STORAGE 3',
-                    data: [55, 3, 6, 30, 6, 65, 101],
-                    fill: false,
-                    borderColor: '#FBCFA6',
-                    tension: 0.1
-                }
-            ],
+            vcuLabel: [],
+            vcuDatasets: [],
+            storageLabel: [],
+            storageDatasets: [],
+            isDataLoaded: false,
+            VCU_DOM_REFS: ['#storageLineVCU', '#vcu-limit-divider', '#vcu-limit-description'],
+            STORAGE_DOM_REFS: ['#storageLine', '#storage-limit-divider', '#storage-limit-description'],
+            EXTREME_FLAG_LEFT_POSITION: 5,
+            EXTREME_FLAG_RIGHT_POSITION: 95,
+            CORRECTIVE_OFFSET: 6,
             url: null,
         }
     },
+    computed: {
+        initialDate() {
+            return `${this.initialStartTime} - ${this.initialEndTime}`
+        },
+        selectedPeriod() {
+            return `${this.startTime}  |  ${this.endTime}`
+        }
+    },
     mounted() {
-        this.generateStorageLine(this.VCU);
-        this.generateVCULine(this.STORAGE);
-        setTimeout(() => {
-            this.isLoadingVCU = false;
-            window.vcuChart = new Chart(document.getElementById('vcuChart'), {
-                type: 'line',
-                data: {
-                    labels: this.vcuLabel,
-                    datasets: this.vcuDatasets,
-                },
-                options: {
-                    plugins: {
-                        legend: {
-                            display: false,
-                        }
-                    }
-                },
+        this.$nextTick(() => {
+            Promise.all([
+                ApiFetchVcu(this.startTime, this.endTime),
+                ApiFetchStorage(),
+                ApiFetchQuota(),
+                ApiFetchStorageSpace(this.startTime, this.endTime),
+            ]).then(res => {
+                this.formatterVcu(res[0]);
+                this.formatterBucket(res[1]);
+                this.formatterQuota(res[2]);
+                this.formatterStorageSpace(res[3]);
+                this.isDataLoaded = true;
+            })
+            $('input[name="daterange"]').daterangepicker({
+                opens: 'left'
+            }, (start, end, label) => {
+                this.startTime = start.format('YYYY-MM-DD');
+                this.endTime = end.format('YYYY-MM-DD');
+                this.reFetchVCUData();
             });
-            window.storageChart = new Chart(document.getElementById('storageChart'), {
-                type: 'line',
-                data: {
-                    labels: this.vcuLabel,
-                    datasets: this.storageDatasets,
-                },
-                options: {
-                    plugins: {
-                        legend: {
-                            display: false,
-                        }
-                    }
-                },
-            });
-        }, 3000)
+        })
     },
     methods: {
-        generateVCULine(VCU) {
-            const systemSize = VCU.current / VCU.max * 100;
-            const limitPosition = VCU.limit / VCU.max * 100;
-            let bgGradient;
-            if (systemSize < VCU.limit) {
-                bgGradient = '#139A41'
-            } else {
-                bgGradient = '#D71616'
-            }
-            const gradientLine = `linear-gradient(to right, ${bgGradient} ${systemSize}%, #EAEDEF ${100 - systemSize}%)`;
-            $('#storageLineVCU').css('background', gradientLine);
-            $('#vcu-limit-divider').css('left', `${limitPosition}%`);
-            $('#vcu-limit-description').css('left', `${limitPosition}%`);
+        formatterVcu(vcuData) {
+            this.vcuTableByActions = vcuData.rows;
+            this.vcuTableByDate = vcuData.group_by_date;
+            this.VCU.platform = vcuData.platform_vcu;
+            this.VCU.project = vcuData.project_vcu;
+            this.drawCanvasVcu(vcuData);
+            $('#vcu_table-actions').bootstrapTable('load', vcuData.rows);
+            if (vcuData.group_by_date.length > 0) $('#vcu_table-data').bootstrapTable('load', vcuData.group_by_date);
         },
-        generateStorageLine(STORAGE) {
-            const systemSize = STORAGE.current / STORAGE.max * 100;
-            const limitPosition = STORAGE.limit / STORAGE.max * 100;
-            let bgGradient;
-            if (systemSize < STORAGE.limit) {
-                bgGradient = '#139A41'
-            } else {
-                bgGradient = '#D71616'
-            }
-            const gradientLine = `linear-gradient(to right, ${bgGradient} ${systemSize}%, #EAEDEF ${100 - systemSize}%)`;
-            $('#storageLine').css('background', gradientLine);
-            $('#storage-limit-divider').css('left', `${limitPosition}%`);
-            $('#storage-limit-description').css('left', `${limitPosition}%`);
+        formatterBucket(bucketData) {
+            this.bucketUsageData = bucketData.rows.map(row => ({ ...row, retention: row.retention?.expiration_measure ?? null}));
+            if(bucketData.rows.length > 0) $('#storage_table').bootstrapTable('load', this.bucketUsageData );
+            this.STORAGE.platform = bucketData.platform_storage.in_bytes;
+            this.STORAGE.project = bucketData.project_storage.in_bytes;
+            this.STORAGE.platformReadable = bucketData.platform_storage.readable;
+            this.STORAGE.projectReadable = bucketData.project_storage.readable;
         },
+        formatterQuota(quotaData) {
+            this.VCU.hardLimit = quotaData.vcu_hard_limit;
+            this.VCU.softLimit = quotaData.vcu_soft_limit;
+            this.STORAGE.softLimit = quotaData.storage_soft_limit;
+            this.STORAGE.hardLimit = quotaData.storage_hard_limit;
+            this.storageLimitTotalBlock = quotaData.storage_limit_total_block;
+            this.vcuLimitTotalBlock = quotaData.vcu_limit_total_block;
+        },
+        formatterThroughput(throughputData) {
+            this.throughputData = throughputData.rows;
+            if (this.throughputData.length > 0) {
+                $('#throughput_table').bootstrapTable('load', this.throughputData);
+            }
+        },
+        formatterStorageSpace(storageSpaceData) {
+            this.storageSpaceData = storageSpaceData;
+            this.throughputField = storageSpaceData.total_throughput;
+            $('#throughput_table').bootstrapTable('load', storageSpaceData);
+            this.drawCanvasStorage(storageSpaceData)
+        },
+        reFetchVCUData() {
+            this.isLoadingVCU = true;
+            Promise.all([
+                ApiFetchVcu(this.startTime, this.endTime),
+                ApiFetchStorageSpace(this.startTime, this.endTime)
+            ]).then((res) => {
+                this.isLoadingVCU = false;
+                const vcuData = res[0];
+                this.vcuTableByActions = vcuData.rows;
+                this.vcuTableByDate = vcuData.group_by_date;
+
+                $('#vcu_table-actions').bootstrapTable('load', vcuData.rows);
+                $('#vcu_table-data').bootstrapTable('load', vcuData.group_by_date);
+                this.VCU.platform = vcuData.platform_vcu;
+                this.VCU.project = vcuData.project_vcu;
+                this.drawCanvasVcu(vcuData);
+
+                const storageSpaceData = res[1];
+                this.storageSpaceData = storageSpaceData;
+                $('#throughput_table').bootstrapTable('load', storageSpaceData);
+                this.drawCanvasStorage(storageSpaceData);
+            }).finally(() => {
+                this.isLoadingVCU = false;
+            })
+        },
+        drawCanvasVcu(vcuData) {
+            if (vcuData.rows.length === 0 ) {
+                this.noDataVcuChart = true;
+                return
+            }
+            this.noDataVcuChart = false;
+            this.vcuLabel = vcuData.rows.map(row => row.date);
+            this.vcuDatasets = generateVcuDatasets(vcuData);
+            if (window.vcuChart?.data) {
+                window.vcuChart.destroy();
+                window.vcuChart = null;
+            }
+            this.isLoadingVCU = false;
+        },
+        drawCanvasStorage(storageSpaceData) {
+            if (this.storageSpaceData.rows.length === 0) {
+                this.noDataStorageChart = true;
+                return
+            }
+            this.noDataStorageChart = false;
+            this.storageLabel = storageSpaceData.rows.map(row => row.date);
+            this.storageDatasets = generateStorageDatasets(storageSpaceData.rows)
+            if (window.storageChart?.data) {
+                window.storageChart.destroy();
+                window.storageChart = null;
+            }
+            this.isLoadingVCU = false;
+        },
+        updateVcuLimits(limits) {
+            this.VCU.hardLimit = limits.vcu_hard_limit;
+            this.VCU.softLimit = limits.vcu_soft_limit;
+            this.vcuLimitTotalBlock = limits.vcu_limit_total_block;
+        },
+        updateStorageLimits(limits) {
+            this.STORAGE.hardLimit = limits.storage_hard_limit;
+            this.STORAGE.softLimit = limits.storage_soft_limit;
+            this.storageLimitTotalBlock = limits.storage_limit_total_block;
+        },
+        formatterGb(size) {
+            return (size / 1000000000).toFixed(2);
+        }
     },
     template: `
         <div class="p-3">
             <div class="card p-28">
                 <div class="d-flex justify-content-between">
                     <p class="font-h5 font-bold font-uppercase">Usage report</p>
-                    <div class="selectpicker-titled">
-                        <span class="font-h6 font-semibold px-3 item__left fa fa-calendar"></span>
-                        <select class="selectpicker flex-grow-1" data-style="item__right"
-                            v-model="start_time"
-                        >
-                            <option value="all">All</option>
-                            <option value="yesterday">Yesterday</option>
-                            <option value="last_week">Last Week</option>
-                            <option value="last_month">Last Month</option>
-                        </select>
+                    <div class="position-relative d-flex" style="right: -8px">
+                        <button class="btn btn-secondary py-0 d-flex align-items-center" style="border-color: #DBE2E8">
+                            <span class="pr-2 mr-2 d-flex align-items-center" style="border-right: solid 1px #DBE2E8; height: 32px;">
+                                <i class="icon_schedule icon__14x14"></i>
+                            </span>
+                            <label for="time-picker">
+                                <span class="text-gray-800 font-weight-400 cursor-pointer">{{ selectedPeriod }}</span>
+                                <i class="icon__14x14 icon-arrow-down__16 ml-2"></i>
+                            </label>
+                        </button>
+                        <input id="time-picker" 
+                            type="text"
+                            name="daterange" 
+                            :value="initialDate"
+                            style="visibility: hidden; width: 0px" />
                     </div>
                 </div>
-                <div class="d-grid gap-4 grid-column-4 mt-20">
-                    <div class="p-20 usage-card">
-                        <div class="blue-square">
-                            <img src="/usage/static/assets/icons/wallet.svg">
-                        </div>
-                        <p class="font-h6 text-uppercase flex-grow-1 text-gray-600 font-semibold">Total payment</p>
-                        <p class="font-h3 text-gray-800 font-bold" style="font-size: 32px">205 $</p>
-                    </div>
-                    <div class="p-20 usage-card">
-                        <div class="blue-square">
-                            <img src="/usage/static/assets/icons/platform-use.svg">
-                        </div>
-                        <div class="flex-grow-1">
-                            <p class="font-h6 text-uppercase text-gray-600 font-semibold">PLATFORM USE</p>
-                            <p class="font-h3 text-uppercase text-gray-800 font-bold">2500 VCU</p>
-                        </div>
-                        <p class="font-h5 text-gray-800 font-semibold align-self-end  d-flex">
-                            <img src="/usage/static/assets/icons/wallet-blue.svg" class="mr-2">180 $
-                        </p>
-                    </div>
-                    <div class="p-20 usage-card">
-                        <div class="blue-square">
-                            <img src="/usage/static/assets/icons/database.svg">
-                        </div>
-                        <div class="flex-grow-1">
-                            <p class="font-h6 text-uppercase text-gray-600 font-semibold">Platform storage use</p>
-                            <p class="font-h3 text-uppercase text-gray-800 font-bold">10 GB</p>
-                        </div>
-                        <p class="font-h5 text-gray-800 font-semibold align-self-end  d-flex">
-                            <img src="/usage/static/assets/icons/wallet-blue.svg" class="mr-2">180 $
-                        </p>
-                    </div>
-                    <div class="p-20 usage-card">
-                        <div class="blue-square">
-                            <img src="/usage/static/assets/icons/time.svg">
-                        </div>
-                        <div class="flex-grow-1">
-                            <p class="font-h6 text-uppercase text-gray-600 font-semibold">Storage throughput</p>
-                            <p class="font-h3 text-uppercase text-gray-800 font-bold">15 GB</p>
-                        </div>
-                        <p class="font-h5 text-gray-800 font-semibold align-self-end  d-flex">
-                            <img src="/usage/static/assets/icons/wallet-blue.svg" class="mr-2">15 $
-                        </p>
-                    </div>
-                </div>
+                <UsageBillingCards
+                    :platformVcu="VCU.platform"
+                    :platformStorage="STORAGE.platformReadable" 
+                    :throughput="throughputField"
+                ></UsageBillingCards>
             </div>
-            <div class="d-grid gap-4 grid-column-2 mt-3">
+            <div id="table-chart-block" class="d-grid gap-4 grid-column-2 mt-3">
                 <div class="card p-28">
                     <div class="d-flex justify-content-between">
                         <p class="font-h4 font-bold">Virtual compute units</p>
                         <p class="font-h5 d-flex cursor-pointer"  style="color: #2772E2">
                             <img src="/usage/static/assets/icons/setting-blue.svg" class="mr-2">
-                            <span data-toggle="modal" data-target="#exampleModal">
+                            <span data-toggle="modal" data-target="#vcuModal">
                                 limits setting
                             </span>
                         </p>
                     </div>
                     <div class="mt-20">
                         <p class="font-h6 mb-1 text-uppercase text-gray-500 font-semibold">Month platform usage</p>
-                        <p class="font-h5 mb-2">{{ VCU.current }} VCU of {{ VCU.max }} VCU</p>
-                        <div id="storageLineVCU" class="position-relative" style="height: 8px; border-radius: 4px; display: inline-block; width: 100%">
-                            <span id="vcu-limit-description">
-                                <img src="/usage/static/assets/icons/flag.svg" class="mr-2">
-                                <span class="font-h5 text-gray-600 font-weight-400">{{ VCU.limit}} VCU</span>
-                            </span>
-                            <span id="vcu-limit-divider"></span>
-                        </div>
+                        <p class="font-h5 pb-2">{{ VCU.platform }} VCU <span v-if="VCU.hardLimit > 0">of {{ VCU.hardLimit }} VCU</span></p>
+                        <usage-filled-line
+                            :limitValues="VCU"
+                            :dom-refs="VCU_DOM_REFS"
+                            color="#139A41"
+                            type="vcu">
+                        </usage-filled-line>
                     </div>
-                    <div class="mt-20 d-flex gap-4">
+                    <div class="mt-20 d-flex gap-4" style="min-height: 60px">
                         <div class="mr-4">
                             <p class="font-h6 text-uppercase text-gray-500 font-semibold">platform use</p>
-                            <p class="font-h5">{{ VCU.current }} VCU</p>
+                            <p class="font-h5">{{ VCU.platform }} VCU</p>
                         </div>
                         <div class="mr-4">
                             <p class="font-h6 text-uppercase text-gray-500 font-semibold">project use</p>
-                            <p class="font-h5">700 VCU</p>
+                            <p class="font-h5">{{ VCU.project }} VCU</p>
                         </div>
                         <div class="mr-4">
                             <p class="font-h6 text-uppercase text-gray-500 font-semibold">hard limit</p>
-                            <p class="font-h5">{{ VCU.max }} VCU</p>
+                            <p class="font-h5">{{ VCU.hardLimit }} VCU</p>
                         </div>
                         <div class="mr-4">
                             <p class="font-h6 text-uppercase text-gray-500 font-semibold">soft limit</p>
-                            <p class="font-h5">{{ VCU.limit }} VCU</p>
+                            <p class="font-h5">{{ VCU.softLimit }} VCU</p>
                         </div>
                     </div>
-                    <div class="mt-20">
-                        <div class="position-relative" style="height: 300px">
-                            <div class="layout-spinner" v-if="isLoadingVCU">
-                                <div class="spinner-centered">
-                                    <i class="spinner-loader__32x32"></i>
-                                </div>
-                            </div>
-                            <canvas id="vcuChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top: 70px">
-                        <div class="card-table">
-                            <div class="d-flex justify-content-between">
-                                <div class="d-flex justify-content-end align-items-center pb-4">
-                                    <div>
-                                        <ul class="custom-tabs nav nav-pills mr-3" id="pills-tab" role="tablist">
-                                            <li class="nav-item" role="presentation">
-                                                <a class="active" id="pills-action-tab" data-toggle="pill" href="#pills-action" role="tab" aria-controls="action" aria-selected="true">Usage by action</a>
-                                            </li>
-                                            <li class="nav-item" role="presentation">
-                                                <a class="" id="pills-date-tab" data-toggle="pill" href="#pills-date" role="tab" aria-controls="date" aria-selected="false">Usage by date</a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="">
-                                <table class="table table-border"
-                                       id="ui_summary_table"
-                                       :data-url="url"
-                                       data-toggle="table"
-                                       data-sort-name="loop"
-                                       data-sort-order="asc"
-                                       data-page-size=10
-                                       data-pagination="true"
-                                       data-pagination-parts='["pageInfoShort", "pageList"]'>
-                                    <thead class="thead-light">
-                                    <tr>
-                                        <th scope="col" data-sortable="true" data-formatter=trim>Name</th>
-                                        <th scope="col" data-sortable="true" data-field="loop">Type</th>
-                                        <th scope="col" data-sortable="true" data-field="load_time">Date</th>
-                                        <th scope="col" data-sortable="true" data-field="load_time">Platform vcu</th>
-                                        <th scope="col" data-sortable="true" data-field="load_time">Project vcu</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                    <usage-chart
+                        :is-loading="isLoadingVCU"
+                        :is-no-data="noDataVcuChart"
+                        :labels="vcuLabel"
+                        :datasets="vcuDatasets"
+                        type="vcu"
+                        chartId="vcuChart"
+                    >
+                    </usage-chart>
+                    <usage-table>
+                    </usage-table>
                 </div>
                 <div class="card p-28">
                     <div class="d-flex justify-content-between">
                         <p class="font-h4 font-bold">Storage</p>
                         <p class="font-h5 d-flex cursor-pointer"  style="color: #2772E2">
                             <img src="/usage/static/assets/icons/setting-blue.svg" class="mr-2">
-                            <span data-toggle="modal" data-target="#exampleModal">
+                            <span data-toggle="modal" data-target="#storageModal">
                                 limits setting
                             </span>
                         </p>
                     </div>
                     <div class="mt-20">
-                        <p class="font-h6 mb-1 text-uppercase text-gray-500 font-semibold">Month platform usage</p>
-                        <p class="font-h5 mb-2">{{ STORAGE.current }} GB of {{ STORAGE.max }} GB</p>
-                        <div id="storageLine" class="position-relative" style="height: 8px; border-radius: 4px; display: inline-block; width: 100%">
-                            <span id="storage-limit-description">
-                                <img src="/usage/static/assets/icons/flag.svg" class="mr-2">
-                                <span class="font-h5 text-gray-600 font-weight-400">{{ STORAGE.limit}} GB</span>
-                            </span>
-                            <span id="storage-limit-divider"></span>
-                        </div>
+                        <p class="font-h6 mb-1 text-uppercase text-gray-500 font-semibold">Total storage usage</p>
+                        <p class="font-h5 pb-2">{{ STORAGE.platformReadable }} <span v-if="STORAGE.hardLimit > 0">of {{ STORAGE.hardLimit }}GB</span></p>
+                        <usage-filled-line
+                            :limitValues="STORAGE"
+                            :dom-refs="STORAGE_DOM_REFS"
+                            color="#2772E2"
+                            type="storage">
+                        </usage-filled-line>
                     </div>
-                    <div class="mt-20 d-flex gap-4">
+                    <div class="mt-20 d-flex gap-4" style="min-height: 60px">
                         <div class="mr-4">
                             <p class="font-h6 text-uppercase text-gray-500 font-semibold">platform storage</p>
-                            <p class="font-h5">{{ STORAGE.current }} GB</p>
+                            <p class="font-h5">{{ STORAGE.platformReadable }}</p>
                         </div>
                         <div class="mr-4">
                             <p class="font-h6 text-uppercase text-gray-500 font-semibold">project storage</p>
-                            <p class="font-h5">70 GB</p>
+                            <p class="font-h5">{{ STORAGE.projectReadable  }}</p>
                         </div>
                         <div class="mr-4">
                             <p class="font-h6 text-uppercase text-gray-500 font-semibold">throughput</p>
-                            <p class="font-h5">{{ STORAGE.max }} GB</p>
+                            <p class="font-h5">{{ throughputField }}</p>
                         </div>
                         <div class="mr-4">
                             <p class="font-h6 text-uppercase text-gray-500 font-semibold">hard limit</p>
-                            <p class="font-h5">{{ STORAGE.limit }} GB</p>
+                            <p class="font-h5">{{ formatterGb(STORAGE.hardLimit) }} GB</p>
                         </div>
                         <div class="mr-4">
                             <p class="font-h6 text-uppercase text-gray-500 font-semibold">soft limit</p>
-                            <p class="font-h5">{{ STORAGE.limit }} GB</p>
+                            <p class="font-h5">{{ formatterGb(STORAGE.softLimit) }} GB</p>
                         </div>
                     </div>
-                    <div class="mt-20">
-                        <div class="position-relative" style="height: 300px">
-                            <div class="layout-spinner" v-if="isLoadingVCU">
-                                <div class="spinner-centered">
-                                    <i class="spinner-loader__32x32"></i>
-                                </div>
-                            </div>
-                            <canvas id="storageChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top: 70px">
-                        <div class="card-table">
-                            <div class="d-flex justify-content-between">
-                                <div class="d-flex justify-content-end align-items-center pb-4">
-                                    <div>
-                                        <ul class="custom-tabs nav nav-pills mr-3" id="pills-tab" role="tablist">
-                                            <li class="nav-item" role="presentation">
-                                                <a class="active" id="pills-action-tab" data-toggle="pill" href="#pills-action" role="tab" aria-controls="action" aria-selected="true">Usage by action</a>
-                                            </li>
-                                            <li class="nav-item" role="presentation">
-                                                <a class="" id="pills-date-tab" data-toggle="pill" href="#pills-date" role="tab" aria-controls="date" aria-selected="false">Usage by date</a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="">
-                                <table class="table table-border"
-                                       id="ui_summary_table"
-                                       :data-url="url"
-                                       data-toggle="table"
-                                       data-sort-name="loop"
-                                       data-sort-order="asc"
-                                       data-page-size=10
-                                       data-pagination="true"
-                                       data-pagination-parts='["pageInfoShort", "pageList"]'>
-                                    <thead class="thead-light">
-                                    <tr>
-                                        <th scope="col" data-sortable="true" data-formatter=trim>Bucket</th>
-                                        <th scope="col" data-sortable="true" data-field="loop">Size</th>
-                                        <th scope="col" data-sortable="true" data-field="load_time">Retention</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                    <usage-chart
+                        :is-loading="isLoadingVCU"
+                        :is-no-data="noDataStorageChart"
+                        :labels="storageLabel"
+                        :datasets="storageDatasets"
+                        type="storage"
+                        chartId="storageChart"
+                    >
+                    </usage-chart>
+                    <storage-table>
+                    </storage-table>
                 </div>
             </div>
-            <usage-modal-v-c-u>
-            
-            </usage-modal-v-c-u>
+            <usage-modal-limits
+                v-if="isDataLoaded"
+                :hard-limit="VCU.hardLimit"
+                :soft-limit="VCU.softLimit"
+                :limit-total-block="vcuLimitTotalBlock"
+                @update-limits="updateVcuLimits"
+                type="vcu"
+                >
+            </usage-modal-limits>
+            <usage-modal-limits
+                v-if="isDataLoaded"
+                :hard-limit="STORAGE.hardLimit"
+                :soft-limit="STORAGE.softLimit"
+                :limit-total-block="storageLimitTotalBlock"
+                @update-limits="updateStorageLimits"
+                type="storage"
+                >
+            </usage-modal-limits>
         </div>
     `
 }

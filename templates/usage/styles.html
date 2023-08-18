@@ -32,4 +32,39 @@
         top: -350%;
         transform: translateX(-50%);
     }
+    @media screen and (max-width: 1280px) {
+        #table-chart-block {
+            grid-template-columns:  1fr;
+        }
+        #cards-billing {
+            grid-template-columns:  repeat(2, 1fr);
+        }
+    }
+
+    .bootstrap-table .fixed-table-container .fixed-table-body {
+        height: auto;
+    }
+    .drp-buttons {
+        display: flex !important;
+        justify-content: end !important;
+    }
+    .drp-selected {
+        display: none !important;
+    }
+    .daterangepicker td.active, .daterangepicker td.active:hover {
+        background-color: var(--basic) !important;
+    }
+    .daterangepicker.opensleft {
+        margin-right: 8px;
+    }
+    #vcu-nolimit-divider {
+        background: linear-gradient(to right, #149A42 0%, #EAEDEF 100%);
+        height: 8px;
+        border-radius: 4px;
+    }
+    #storage-nolimit-divider {
+        background: linear-gradient(to right, #2772E2 0%, #EAEDEF 100%);
+        height: 8px;
+        border-radius: 4px;
+    }
 </style>
