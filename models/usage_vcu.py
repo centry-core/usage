@@ -19,8 +19,8 @@ from tools import db, db_tools, rpc_tools
 from ..utils.utils import calculate_vcu, calculate_extras
 
 
-class ResourceUsage(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
-    __tablename__ = "resource_usage"
+class UsageVCU(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
+    __tablename__ = "usage_vcu"
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, unique=False, nullable=True)

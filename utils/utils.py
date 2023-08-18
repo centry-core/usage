@@ -15,7 +15,7 @@ def calculate_extras(vcu: float) -> int:
     return round(vcu * 0.1, 2)
 
 
-def vcu_usage_by_date(resource_usage):
+def vcu_usage_by_date(resource_usage: list):
     if not resource_usage:
         return []
     project_id = resource_usage[0]['project_id']
