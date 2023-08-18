@@ -17,13 +17,16 @@
 
 """ Module """
 from collections import defaultdict
+from datetime import date
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module
 
+from .models.storage_used_space import StorageUsedSpace
+
 from .init_db import init_db
 
-from tools import theme
+from tools import theme, VaultClient
 
 
 class Module(module.ModuleModel):
@@ -35,7 +38,9 @@ class Module(module.ModuleModel):
 
         self.integrations = dict()
         self.sections = dict()
-        self.minio_monitor = defaultdict(int)
+        
+        self.throughput_monitor_data = defaultdict(int)
+        self.space_monitor_data = defaultdict(lambda: defaultdict(int))
 
     def init(self):
         """ Init module """
@@ -77,6 +82,19 @@ class Module(module.ModuleModel):
         #     # weight=2,
         # )
 
+        self.create_storage_throughput_monitor()
+        self.create_storage_used_space_check()
+
+        vault_client = VaultClient()
+        secrets = vault_client.get_all_secrets()
+        if 'usage_days_to_group_by_weeks' not in secrets:
+            secrets['usage_days_to_group_by_weeks'] = 90
+        if 'usage_days_to_group_by_months' not in secrets:
+            secrets['usage_days_to_group_by_months'] = 365
+        vault_client.set_secrets(secrets)
+
+
+    def create_storage_throughput_monitor(self):
         schedule_data = {
             'name': 'storage_throughput_monitor',
             'cron': '*/3 * * * *',
@@ -84,6 +102,13 @@ class Module(module.ModuleModel):
         }
         self.context.rpc_manager.call.scheduling_create_if_not_exists(schedule_data)
 
+    def create_storage_used_space_check(self):
+        schedule_data = {
+            'name': 'storage_used_space_check',
+            'cron': '0 0 * * *',
+            'rpc_func': 'usage_storage_used_space_check'
+        }
+        self.context.rpc_manager.call.scheduling_create_if_not_exists(schedule_data)
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """

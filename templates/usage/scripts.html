@@ -1,5 +1,17 @@
 <script src="{{ url_for('design-system.static', filename='assets/vendor/chart.js/chart.min.js') }}"></script>
 <script src="{{ url_for('design-system.static', filename='assets/vendor/chart.js/chartjs-adapter-date-fns.bundle.min.js') }}"></script>
 
-<script src="{{ url_for('usage.static', filename='js/UsageModalVCU.js') }}" type="text/javascript"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+
+<script src="{{ url_for('usage.static', filename='js/api/usageAPI.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('usage.static', filename='js/utils/sizeFormatter.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('usage.static', filename='js/utils/chartDatasets.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('usage.static', filename='js/UsageChart.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('usage.static', filename='js/UsageBillingCards.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('usage.static', filename='js/UsageFilledLine.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('usage.static', filename='js/UsageTable.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('usage.static', filename='js/StorageTable.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('usage.static', filename='js/UsageModalLimits.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('usage.static', filename='js/Usage.js') }}" type="text/javascript"></script>

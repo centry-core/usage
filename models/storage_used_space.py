@@ -13,16 +13,28 @@
 #     limitations under the License.
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, Date, Boolean
+from sqlalchemy import Column, Integer, Date, Boolean, String, UniqueConstraint
 
 from tools import db, db_tools, rpc_tools
 
 
-class StorageThroughput(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
-    __tablename__ = "storage_throughput"
+class StorageUsedSpace(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
+    __tablename__ = "storage_used_space"
+    __table_args__ = (
+        UniqueConstraint("project_id", "date", "integration_uid", "is_project_resourses"),
+    )
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, unique=False, nullable=True)
     date = Column(Date, default=datetime.utcnow)
-    throughput = Column(Integer, unique=False, nullable=True)
+    integration_name = Column(String(128), unique=False, nullable=True)
+    integration_uid = Column(String(128), unique=False, nullable=False)
+    used_space = Column(Integer, unique=False, default=0)
+    current_delta = Column(Integer, unique=False, default=0)
+    max_delta = Column(Integer, unique=False, default=0)
+    throughput = Column(Integer, unique=False, default=0)
     is_project_resourses = Column(Boolean, unique=False, nullable=False, default=True)
+
+    @property
+    def max_used_space(self):
+        return self.used_space + self.max_delta
