@@ -82,24 +82,24 @@ class Module(module.ModuleModel):
         #     # icon_class="fas fa-server fa-fw",
         #     # weight=2,
         # )
-        # try:
-        #     theme.register_subsection(
-        #         "models", "summary",
-        #         "Symmary",
-        #         title="Summary",
-        #         kind="slot",
-        #         prefix="summary_",
-        #         weight=5,
-        #         permissions={
-        #             "permissions": ["models.prompts"],
-        #             "recommended_roles": {
-        #                 "administration": {"admin": True, "editor": True, "viewer": True},
-        #                 "default": {"admin": True, "editor": True, "viewer": True},
-        #             }
-        #         }
-        #     )
-        # except Exception:
-        #     log.info("Couldn't create a models symmary section")
+        try:
+            theme.register_subsection(
+                "models", "models_summary",
+                "Symmary",
+                title="Summary",
+                kind="slot",
+                prefix="models_summary_",
+                weight=5,
+                permissions={
+                    "permissions": ["models.prompts"],
+                    "recommended_roles": {
+                        "administration": {"admin": True, "editor": True, "viewer": True},
+                        "default": {"admin": True, "editor": True, "viewer": True},
+                    }
+                }
+            )
+        except Exception:
+            log.info("Couldn't create a models symmary section")
 
         self.create_usage_monitor()
         self.create_storage_used_space_check()
