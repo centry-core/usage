@@ -9,23 +9,11 @@ const Usage = {
         UsageBillingCards,
     },
     data() {
-        const initialEndTime = new Date().toLocaleDateString()
-        const initialStartTime = (() => {
-            let d = new Date();
-            d.setMonth(d.getMonth() - 1);
-            return d.toLocaleDateString();
-        })()
         return {
-            initialStartTime: (() => {
-                const d = initialStartTime.split('/');
-                return `${d[1]}/${d[0]}/${d[2]}`
-            })(),
-            initialEndTime: (() => {
-                const d = initialEndTime.split('/');
-                return `${d[1]}/${d[0]}/${d[2]}`
-            })(),
-            startTime: initialStartTime.split('/').reverse().join('-'),
-            endTime: initialEndTime.split('/').reverse().join('-'),
+            initialStartTime: moment().subtract(1, 'months').format('MM/DD/YYYY'),
+            initialEndTime: moment().format('MM/DD/YYYY'),
+            startTime: moment().subtract(1, 'months').format('YYYY-MM-DD'),
+            endTime: moment().format('YYYY-MM-DD'),
             bucketUsageData: null,
             throughputData: null,
             storageSpaceData: null,
@@ -87,6 +75,8 @@ const Usage = {
                 this.formatterQuota(res[2]);
                 this.formatterStorageSpace(res[3]);
                 this.isDataLoaded = true;
+            }).finally(() => {
+                this.isLoadingVCU = false;
             })
             $('input[name="daterange"]').daterangepicker({
                 opens: 'left'
