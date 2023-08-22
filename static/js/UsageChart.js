@@ -29,6 +29,7 @@ const UsageChart = {
                         },
                         scales: {
                             y: {
+                                beginAtZero: true,
                                 position: 'left',
                                 title: {
                                     display: true,
@@ -41,6 +42,7 @@ const UsageChart = {
                                 },
                             },
                             throughput: {
+                                beginAtZero: true,
                                 position: 'right',
                                 display: 'auto',
                                 grid: {
