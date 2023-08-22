@@ -47,3 +47,7 @@ class PredictPD(BaseModel):
     @validator('input', always=True, check_fields=False)
     def get_input(cls, value, values):
         return values['json_'].get('input')
+
+    @validator('run_time')
+    def run_time_riund(cls, value):
+        return round(value, 2)

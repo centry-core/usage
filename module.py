@@ -85,7 +85,7 @@ class Module(module.ModuleModel):
         try:
             theme.register_subsection(
                 "models", "models_summary",
-                "Symmary",
+                "Summary",
                 title="Summary",
                 kind="slot",
                 prefix="models_summary_",
