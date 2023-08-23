@@ -1,7 +1,12 @@
 
 import statistics
 from datetime import datetime, timedelta
+import calendar
 from itertools import groupby
+
+from pylon.core.tools import log
+
+from .utils import get_settings_from_secrets
 
 
 def get_users(data: list):
@@ -30,6 +35,41 @@ def predicts_by_date(predicts_usage: list):
              'response_time': v['response_time'], 
              'predicts': v['predicts'], 
             } for k, v in usage_by_date.items()]
+
+
+def group_by_date_for_predicts(data: list):
+    group_by_weeks, group_by_months = get_settings_from_secrets()
+    duration = len(data)
+    if duration > group_by_months:
+        result = []
+        func = lambda x: datetime.strptime(x['date'], "%d.%m.%Y").month
+        for key, group in groupby(data, func):
+            group = list(group)
+            response_time = round(statistics.median(item['response_time'] for item in group), 2)
+            predicts = sum(item['predicts'] for item in group)
+            date_ = group[0]['date']
+            result.append({
+                'date': f'{calendar.month_abbr[key]} {datetime.strptime(date_, "%d.%m.%Y").year}',
+                'response_time': response_time,
+                'predicts': predicts,
+            })
+        return result
+    elif duration > group_by_weeks:
+        result = []
+        func = lambda x: datetime.strptime(x['date'], "%d.%m.%Y").isocalendar()[1]
+        for key, group in groupby(data, func):
+            group = list(group)
+            response_time = round(statistics.median(item['response_time'] for item in group), 2)
+            predicts = sum(item['predicts'] for item in group)
+            date_ = group[0]['date']
+            result.append({
+                'date': date_,
+                'response_time': response_time,
+                'predicts': predicts,
+            })
+        return result
+    else:
+        return data
 
 
 def get_top_promts_by_name(predicts_usage: list, limit: int = 8):

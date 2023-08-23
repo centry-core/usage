@@ -6,7 +6,7 @@ from pylon.core.tools import log
 
 from tools import auth, api_tools
 from ...utils.prompts import (get_successful_predicts, get_users, predicts_by_date,
-    get_top_promts_by_name)
+    get_top_promts_by_name, group_by_date_for_predicts)
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -24,7 +24,7 @@ class ProjectAPI(api_tools.APIModeHandler):
             'users': get_users(api_usage),
             'predicts_total': len(api_usage), 
             'successful_predicts': get_successful_predicts(api_usage),
-            'predicts_by_date': predicts_by_date(api_usage),
+            'predicts_by_date': group_by_date_for_predicts(predicts_by_date(api_usage)),
             'top_promts_by_name': get_top_promts_by_name(api_usage),
             'rows': api_usage,
             }, 200
