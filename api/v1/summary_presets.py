@@ -9,7 +9,8 @@ from tools import auth, api_tools
 
 class ProjectAPI(api_tools.APIModeHandler):
     def get(self, project_id: int):
-        return self.module.get_models_summary_presets(project_id), 200
+        presets = [i.dict() for i in self.module.get_models_summary_presets(project_id)]
+        return presets, 200
 
     def post(self, project_id: int):
         try:
