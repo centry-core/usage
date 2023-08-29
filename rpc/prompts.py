@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import Union, Optional, List
-from datetime import datetime, date
+from datetime import datetime, timedelta
 from hurry.filesize import size
 from sqlalchemy import func, asc, desc, case
 from pydantic import parse_obj_as
@@ -33,6 +33,7 @@ class RPC:
         if start_time:
             query = query.filter(UsageAPI.date >= start_time.isoformat())
         if end_time:
+            end_time += timedelta(days=1)
             query = query.filter(UsageAPI.date <= end_time.isoformat())
         query_results = query.order_by(asc(UsageAPI.date)).all()
         return parse_obj_as(List[PredictPD], query_results)

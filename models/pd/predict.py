@@ -42,12 +42,12 @@ class PredictPD(BaseModel):
 
     @validator('integration_settings', always=True, check_fields=False)
     def get_integration_settings(cls, value, values):
-        return values['json_'].get('integration_settings')
+        return values['json_'].get('integration_settings', {})
 
     @validator('input', always=True, check_fields=False)
     def get_input(cls, value, values):
         return values['json_'].get('input')
 
     @validator('run_time')
-    def run_time_riund(cls, value):
+    def run_time_round(cls, value):
         return round(value, 2)

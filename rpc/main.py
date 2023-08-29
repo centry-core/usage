@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import Union, Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from hurry.filesize import size
 from sqlalchemy import func, asc, desc, case
 from pydantic import parse_obj_as
@@ -37,6 +37,7 @@ class RPC:
         if start_time:
             query = query.filter(UsageVCU.start_time >= start_time.isoformat())
         if end_time:
+            end_time += timedelta(days=1)
             query = query.filter(UsageVCU.start_time <= end_time.isoformat())
         query_results = query.order_by(asc(UsageVCU.start_time)).all()
         resource_usage = []
@@ -159,6 +160,7 @@ class RPC:
         if start_time:
             subquery = subquery.filter(UsageStorage.date >= start_time.isoformat())
         if end_time:
+            end_time += timedelta(days=1)
             subquery = subquery.filter(UsageStorage.date <= end_time.isoformat())
 
         subquery = subquery.subquery()
