@@ -8,6 +8,7 @@ from pydantic import parse_obj_as
 from ..models.usage_vcu import UsageVCU
 from ..models.usage_storage import UsageStorage
 from ..models.usage_api import UsageAPI
+from ..models.pd.vcu import VcuPD
 from ..utils.utils import calculate_readable_retention_policy
 
 from tools import rpc_tools, db_tools, MinioClient, MinioClientAdmin
@@ -29,11 +30,8 @@ class RPC:
             start_time: datetime | None = None,
             end_time: datetime | None = None
             ):
-        resource_usage = []
         if project_id:
-            query = UsageVCU.query.filter(
-                UsageVCU.project_id == project_id
-                )
+            query = UsageVCU.query.filter(UsageVCU.project_id == project_id)
         else:
             query = UsageVCU.query
         if start_time:
@@ -41,21 +39,12 @@ class RPC:
         if end_time:
             query = query.filter(UsageVCU.start_time <= end_time.isoformat())
         query_results = query.order_by(asc(UsageVCU.start_time)).all()
+        resource_usage = []
         for result in query_results:
             # Exclude tasks which run as a part of a test:
             if result.type == 'task' and result.test_report_id:
                 continue
-            resource_usage.append(
-                {
-                    'id': result.id,
-                    'project_id': result.project_id,
-                    'name': result.name,
-                    'type': result.type,
-                    'date': result.start_time.strftime("%d.%m.%Y %H:%M:%S"),
-                    'project_vcu': result.project_vcu,
-                    'platform_vcu': result.platform_vcu,
-                }
-            )
+            resource_usage.append(VcuPD.from_orm(result).dict())
         return resource_usage
 
     @web.rpc('usage_update_test_resource_usage', 'update_test_resource_usage')
