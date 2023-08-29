@@ -9,16 +9,21 @@ from tools import rpc_tools
 
 class PredictPD(BaseModel):
     json_: Optional[dict] = Field(alias='json')
+    extra_data: Optional[dict]
     project_id: int
     user: str
     date: str
     prompt_id: Optional[int]
     prompt_name: Optional[str]
-    integration_id: Optional[int]
+    integration_uid: Optional[str]
     integration_settings: Optional[dict]
     input: Optional[str]
     run_time: float
     status_code: int
+    context: Optional[str]
+    examples: Optional[dict]
+    variables: Optional[dict]
+
 
     class Config:
         orm_mode = True
@@ -33,12 +38,11 @@ class PredictPD(BaseModel):
 
     @validator('prompt_name', always=True, check_fields=False)
     def get_prompt_name(cls, value, values):
-        return rpc_tools.RpcMixin().rpc.timeout(2).prompts_get_by_id(
-            values['project_id'], values['prompt_id'])['name']
+        return values['extra_data'].get('prompt_name')
 
-    @validator('integration_id', always=True, check_fields=False)
-    def get_integration_id(cls, value, values):
-        return values['json_'].get('integration_id')
+    @validator('integration_uid', always=True, check_fields=False)
+    def get_integration_uid(cls, value, values):
+        return values['json_'].get('integration_uid')
 
     @validator('integration_settings', always=True, check_fields=False)
     def get_integration_settings(cls, value, values):
@@ -51,3 +55,15 @@ class PredictPD(BaseModel):
     @validator('run_time')
     def run_time_round(cls, value):
         return round(value, 2)
+
+    @validator('context', always=True, check_fields=False)
+    def get_context(cls, value, values):
+        return values['extra_data'].get('context', {})
+    
+    @validator('examples', always=True, check_fields=False)
+    def get_examples(cls, value, values):
+        return values['extra_data'].get('examples', {})
+
+    @validator('variables', always=True, check_fields=False)
+    def get_variables(cls, value, values):
+        return values['extra_data'].get('variables', {})

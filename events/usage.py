@@ -102,4 +102,15 @@ class Event:
 
     @web.event('usage_api_monitor')
     def api_monitor(self, context, event, payload) -> None:
+        if payload['endpoint'] == self.descriptor.config['predict_endpoint']:
+            prompt_id = payload['json']['prompt_id']
+            prompt = self.context.rpc_manager.timeout(2).prompts_get_by_id(payload['project_id'], prompt_id)
+            payload.update({
+                'extra_data': {
+                    'prompt_name': prompt['name'],
+                    'context': prompt['prompt'],
+                    'examples': prompt['examples'],
+                    'variables': prompt['variables'],                    
+                }
+            })
         self.api_monitor_data.append(payload)

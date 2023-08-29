@@ -18,8 +18,8 @@ class ProjectAPI(api_tools.APIModeHandler):
             start_time = datetime.fromisoformat(start_time.strip('Z'))
         if end_time := request.args.get('end_time'):
             end_time = datetime.fromisoformat(end_time.strip('Z'))
-        api_usage = [i.dict(exclude={'json_', 'integration_settings'}) | i.dict()['integration_settings'] 
-            for i in self.module.get_prompts_usage(project_id, start_time, end_time)]   
+        api_usage = [i.dict(exclude={'json_', 'integration_settings', 'extra_data'}) | i.dict()['integration_settings'] 
+            for i in self.module.get_prompts_usage(project_id, start_time, end_time)]
         return {
             'users': get_users(api_usage),
             'predicts_total': len(api_usage), 

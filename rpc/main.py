@@ -273,6 +273,7 @@ class RPC:
                 files=api_call.get('files'),
                 run_time=api_call.get('run_time'),
                 status_code=api_call.get('status_code'),
+                extra_data=api_call.get('extra_data'),
             )
             monitor_data.append(record)
         db_tools.bulk_save(monitor_data)

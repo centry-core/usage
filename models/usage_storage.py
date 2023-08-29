@@ -28,7 +28,7 @@ class UsageStorage(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     project_id = Column(Integer, unique=False, nullable=True)
     date = Column(Date, default=datetime.utcnow)
     integration_name = Column(String(128), unique=False, nullable=True)
-    integration_uid = Column(String(128), unique=False, nullable=False)
+    integration_uid = Column(String(128), unique=False, nullable=True)
     used_space = Column(Integer, unique=False, default=0)
     current_delta = Column(Integer, unique=False, default=0)
     max_delta = Column(Integer, unique=False, default=0)
