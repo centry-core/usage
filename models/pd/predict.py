@@ -7,7 +7,30 @@ from pylon.core.tools import log
 from tools import rpc_tools
 
 
+TEXT_LIMIT = 50
+
+class PredictShortPD(BaseModel):
+    user: str
+    date: str
+    prompt_name: Optional[str]
+    run_time: float
+    status_code: int
+
+
+    class Config:
+        orm_mode = True
+
+    @validator('date', pre=True)
+    def datetime_to_str(cls, value: datetime, values):
+        return value.strftime("%d.%m.%Y %H:%M:%S")
+
+    @validator('run_time')
+    def run_time_round(cls, value):
+        return round(value, 2)
+
+
 class PredictPD(BaseModel):
+    id: int
     json_: Optional[dict] = Field(alias='json')
     extra_data: Optional[dict]
     project_id: int
@@ -21,8 +44,8 @@ class PredictPD(BaseModel):
     run_time: float
     status_code: int
     context: Optional[str]
-    examples: Optional[dict]
-    variables: Optional[dict]
+    examples: Optional[bool]
+    variables: Optional[bool]
 
 
     class Config:
@@ -50,7 +73,7 @@ class PredictPD(BaseModel):
 
     @validator('input', always=True, check_fields=False)
     def get_input(cls, value, values):
-        return values['json_'].get('input')
+        return values['json_'].get('input', '')[:TEXT_LIMIT]
 
     @validator('run_time')
     def run_time_round(cls, value):
@@ -58,12 +81,15 @@ class PredictPD(BaseModel):
 
     @validator('context', always=True, check_fields=False)
     def get_context(cls, value, values):
-        return values['extra_data'].get('context', {})
+        return (
+            values['extra_data'].get('context', '') + 
+            values['json_'].get('context', '')
+            )[:TEXT_LIMIT]
     
     @validator('examples', always=True, check_fields=False)
     def get_examples(cls, value, values):
-        return values['extra_data'].get('examples', {})
+        return bool(values['extra_data'].get('examples')) or bool(values['json_'].get('examples'))
 
     @validator('variables', always=True, check_fields=False)
     def get_variables(cls, value, values):
-        return values['extra_data'].get('variables', {})
+        return bool(values['extra_data'].get('variables')) or bool(values['json_'].get('variables'))

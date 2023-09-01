@@ -2,11 +2,11 @@ from collections import defaultdict
 from typing import Union, Optional, List
 from datetime import datetime, timedelta
 from hurry.filesize import size
-from sqlalchemy import func, asc, desc, case
+from sqlalchemy import func, asc, desc, case, cast, Integer
 from pydantic import parse_obj_as
 
 from ..models.usage_api import UsageAPI
-from ..models.pd.predict import PredictPD
+from ..models.pd.predict import PredictPD, PredictShortPD
 from ..models.pd.summary_presets import SummaryPresetsPD
 
 from ..models.usage_models_summary_presets import UsageModelsSummaryPreset
@@ -15,16 +15,42 @@ from tools import rpc_tools, config
 from pylon.core.tools import web, log
 
 
+ODRER_MAPPING = {
+    'project_id': UsageAPI.project_id,
+    'user': UsageAPI.user,
+    'date': UsageAPI.date,
+    'run_time': UsageAPI.run_time,
+    'status_code': UsageAPI.status_code,
+    'prompt_id': cast(UsageAPI.json['prompt_id'].astext, Integer),
+    'prompt_name': UsageAPI.extra_data['prompt_name'].astext,
+    'integration_uid': UsageAPI.json['integration_uid'].astext,
+    'input': UsageAPI.json['input'].astext,
+    'context': UsageAPI.extra_data['prompt_name'].astext,
+    'model_name': UsageAPI.json['integration_settings']['model_name'].astext,
+    'temperature': UsageAPI.json['integration_settings']['temperature'].astext,
+    'max_tokens': UsageAPI.json['integration_settings']['max_tokens'].astext,
+    'top_k': UsageAPI.json['integration_settings']['top_k'].astext,
+    'top_k': UsageAPI.json['integration_settings']['top_k'].astext,
+}
+
 class RPC:
-    @web.rpc('usage_get_prompts_usage', 'get_prompts_usage')
+    @web.rpc('usage_get_prompts_summary', 'get_prompts_summary')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def get_prompts_usage(
-            self, project_id: int | None = None,
+    def get_prompts_summary(
+            self, project_id: int,
             start_time: datetime | None = None,
             end_time: datetime | None = None, 
-            endpoint: str = 'api.v1.prompts.predict'
+            endpoint: str | None = None,
             ):
-        query = UsageAPI.query.filter(
+        if not endpoint:
+            endpoint = self.descriptor.config['predict_endpoint']
+        query = UsageAPI.query.with_entities(
+            UsageAPI.user, 
+            UsageAPI.date,
+            UsageAPI.run_time,
+            UsageAPI.status_code,
+            UsageAPI.extra_data['prompt_name'].astext.label('prompt_name')           
+            ).filter(
             UsageAPI.project_id == project_id,
             UsageAPI.mode == config.DEFAULT_MODE,
             UsageAPI.endpoint == endpoint,
@@ -36,7 +62,44 @@ class RPC:
             end_time += timedelta(days=1)
             query = query.filter(UsageAPI.date <= end_time.isoformat())
         query_results = query.order_by(asc(UsageAPI.date)).all()
-        return parse_obj_as(List[PredictPD], query_results)
+        return parse_obj_as(List[PredictShortPD], query_results)
+    
+    @web.rpc('usage_get_prompts_summary_table', 'get_prompts_summary_table')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def get_prompts_summary_table(
+            self, project_id: int,
+            start_time: datetime | None = None,
+            end_time: datetime | None = None,
+            page: int = 1, 
+            per_page: int = 5, 
+            order_by: str = 'date', 
+            order_keyword: str = 'asc', 
+            endpoint: str | None = None,
+            ):
+        if not endpoint:
+            endpoint = self.descriptor.config['predict_endpoint']
+        query = UsageAPI.query.filter(
+            UsageAPI.project_id == project_id,
+            UsageAPI.mode == config.DEFAULT_MODE,
+            UsageAPI.endpoint == endpoint,
+            UsageAPI.method == 'POST'
+            )
+        if start_time:
+            query = query.filter(UsageAPI.date >= start_time.isoformat())
+        if end_time:
+            end_time += timedelta(days=1)
+            query = query.filter(UsageAPI.date <= end_time.isoformat())
+        order_func = asc if order_keyword == 'asc' else desc
+        order_conditon = ODRER_MAPPING[order_by]
+        query = query.order_by(order_func(order_conditon))
+        paginator = query.paginate(page=page, per_page=per_page)
+        return paginator, parse_obj_as(List[PredictPD], paginator.items)
+
+    @web.rpc('usage_get_prompts_summary_table_value', 'get_prompts_summary_table_value')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def get_prompts_summary_table_value(self, field_id: int, field_name: str):
+        record = UsageAPI.query.get_or_404(field_id)
+        return record.extra_data.get(field_name, '') + record.json.get(field_name, '')
 
     @web.rpc('usage_get_models_summary_presets', 'get_models_summary_presets')
     @rpc_tools.wrap_exceptions(RuntimeError)

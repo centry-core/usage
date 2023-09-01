@@ -1,12 +1,10 @@
 import json
 from datetime import datetime
 from typing import Optional, Tuple, List
-from flask import request
+from flask import abort, request
 from pylon.core.tools import log
 
 from tools import auth, api_tools
-from ...utils.prompts import (get_successful_predicts, get_users, predicts_by_date,
-    get_top_promts_by_name, group_by_date_for_predicts)
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -18,16 +16,28 @@ class ProjectAPI(api_tools.APIModeHandler):
             start_time = datetime.fromisoformat(start_time.strip('Z'))
         if end_time := request.args.get('end_time'):
             end_time = datetime.fromisoformat(end_time.strip('Z'))
-        api_usage = [i.dict(exclude={'json_', 'integration_settings', 'extra_data'}) | i.dict()['integration_settings'] 
-            for i in self.module.get_prompts_usage(project_id, start_time, end_time)]
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 5))
+        order_by = request.args.get('order_by', 'date')
+        order_keyword = request.args.get('order_keyword', 'asc')
+        try:
+            paginator, api_usage = self.module.get_prompts_summary_table(
+                project_id, start_time, end_time, page, per_page, order_by, order_keyword
+                )
+        except KeyError:
+            abort(404)
+        api_usage = [
+            i.dict(exclude={'json_', 'integration_settings', 'extra_data'}) | i.dict()['integration_settings'] 
+            for i in api_usage
+            ]
         return {
-            'users': get_users(api_usage),
-            'predicts_total': len(api_usage), 
-            'successful_predicts': get_successful_predicts(api_usage),
-            'predicts_by_date': group_by_date_for_predicts(predicts_by_date(api_usage)),
-            'top_promts_by_name': get_top_promts_by_name(api_usage),
             'rows': api_usage,
-            }, 200
+            "pagination": {
+                "total": paginator.total,
+                "page": page,
+                "per_page": per_page,
+                "pages": paginator.pages,
+            }}, 200
 
 
 class AdminAPI(api_tools.APIModeHandler):
