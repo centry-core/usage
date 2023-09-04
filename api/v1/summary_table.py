@@ -16,13 +16,13 @@ class ProjectAPI(api_tools.APIModeHandler):
             start_time = datetime.fromisoformat(start_time.strip('Z'))
         if end_time := request.args.get('end_time'):
             end_time = datetime.fromisoformat(end_time.strip('Z'))
-        page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 5))
-        order_by = request.args.get('order_by', 'date')
-        order_keyword = request.args.get('order_keyword', 'asc')
+        offset = int(request.args.get('offset', 0))
+        limit = int(request.args.get('limit', 5))
+        sort = request.args.get('sort', 'date')
+        order = request.args.get('order', 'asc')
         try:
             paginator, api_usage = self.module.get_prompts_summary_table(
-                project_id, start_time, end_time, page, per_page, order_by, order_keyword
+                project_id, start_time, end_time, offset, limit, sort, order
                 )
         except KeyError:
             abort(404)
@@ -32,12 +32,8 @@ class ProjectAPI(api_tools.APIModeHandler):
             ]
         return {
             'rows': api_usage,
-            "pagination": {
-                "total": paginator.total,
-                "page": page,
-                "per_page": per_page,
-                "pages": paginator.pages,
-            }}, 200
+            "total": paginator.total
+            }, 200
 
 
 class AdminAPI(api_tools.APIModeHandler):

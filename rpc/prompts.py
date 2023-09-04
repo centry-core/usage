@@ -30,7 +30,9 @@ ODRER_MAPPING = {
     'temperature': UsageAPI.json['integration_settings']['temperature'].astext,
     'max_tokens': UsageAPI.json['integration_settings']['max_tokens'].astext,
     'top_k': UsageAPI.json['integration_settings']['top_k'].astext,
-    'top_k': UsageAPI.json['integration_settings']['top_k'].astext,
+    'top_p': UsageAPI.json['integration_settings']['top_p'].astext,
+    'examples': UsageAPI.extra_data['examples'].astext,
+    'variables': UsageAPI.extra_data['variables'].astext,
 }
 
 class RPC:
@@ -70,10 +72,10 @@ class RPC:
             self, project_id: int,
             start_time: datetime | None = None,
             end_time: datetime | None = None,
-            page: int = 1, 
-            per_page: int = 5, 
-            order_by: str = 'date', 
-            order_keyword: str = 'asc', 
+            offset: int = 0, 
+            limit: int = 5, 
+            sort: str = 'date', 
+            order: str = 'asc', 
             endpoint: str | None = None,
             ):
         if not endpoint:
@@ -89,10 +91,10 @@ class RPC:
         if end_time:
             end_time += timedelta(days=1)
             query = query.filter(UsageAPI.date <= end_time.isoformat())
-        order_func = asc if order_keyword == 'asc' else desc
-        order_conditon = ODRER_MAPPING[order_by]
+        order_func = asc if order == 'asc' else desc
+        order_conditon = ODRER_MAPPING[sort]
         query = query.order_by(order_func(order_conditon))
-        paginator = query.paginate(page=page, per_page=per_page)
+        paginator = query.paginate(page=(offset // limit) + 1, per_page=limit)
         return paginator, parse_obj_as(List[PredictPD], paginator.items)
 
     @web.rpc('usage_get_prompts_summary_table_value', 'get_prompts_summary_table_value')
