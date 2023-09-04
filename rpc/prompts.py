@@ -72,7 +72,7 @@ class RPC:
             self, project_id: int,
             start_time: datetime | None = None,
             end_time: datetime | None = None,
-            offset: int = 0, 
+            page: int = 1, 
             limit: int = 5, 
             sort: str = 'date', 
             order: str = 'asc', 
@@ -94,7 +94,7 @@ class RPC:
         order_func = asc if order == 'asc' else desc
         order_conditon = ODRER_MAPPING[sort]
         query = query.order_by(order_func(order_conditon))
-        paginator = query.paginate(page=(offset // limit) + 1, per_page=limit)
+        paginator = query.paginate(page=page, per_page=limit)
         return paginator, parse_obj_as(List[PredictPD], paginator.items)
 
     @web.rpc('usage_get_prompts_summary_table_value', 'get_prompts_summary_table_value')
