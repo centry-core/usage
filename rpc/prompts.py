@@ -103,7 +103,7 @@ class RPC:
         record = UsageAPI.query.get_or_404(field_id)
         if record:
             if field_name in ('examples', 'variables'):
-                 return record.extra_data.get(field_name, {}) + record.json.get(field_name, {})
+                 return record.extra_data.get(field_name, []) + record.json.get(field_name, [])
             if field_name in ('context', 'input'):
                 return record.extra_data.get(field_name, '') + record.json.get(field_name, '')
 
