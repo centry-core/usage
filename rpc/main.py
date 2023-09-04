@@ -9,6 +9,7 @@ from ..models.usage_vcu import UsageVCU
 from ..models.usage_storage import UsageStorage
 from ..models.usage_api import UsageAPI
 from ..models.pd.vcu import VcuPD
+from ..models.pd.endpoint import EndpointPD
 from ..utils.utils import calculate_readable_retention_policy
 
 from tools import rpc_tools, db_tools, MinioClient, MinioClientAdmin
@@ -260,21 +261,8 @@ class RPC:
     def _write_api_data_to_postgres(self):
         monitor_data = []
         for api_call in self.api_monitor_data:
-            record = UsageAPI(
-                project_id=api_call.get('project_id'),
-                mode=api_call.get('mode'),
-                user=api_call.get('user'),
-                endpoint=api_call.get('endpoint'),
-                method=api_call.get('method'),
-                date=api_call.get('date'),
-                view_args=api_call.get('view_args'),
-                query_params=api_call.get('query_params'),
-                json=api_call.get('json'),
-                files=api_call.get('files'),
-                run_time=api_call.get('run_time'),
-                status_code=api_call.get('status_code'),
-                extra_data=api_call.get('extra_data'),
-            )
+            api_attrs = EndpointPD.validate(api_call).dict(by_alias=True)
+            record = UsageAPI(**api_attrs)
             monitor_data.append(record)
         db_tools.bulk_save(monitor_data)
         self.api_monitor_data = []

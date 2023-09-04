@@ -101,7 +101,11 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def get_prompts_summary_table_value(self, field_id: int, field_name: str):
         record = UsageAPI.query.get_or_404(field_id)
-        return record.extra_data.get(field_name, '') + record.json.get(field_name, '')
+        if record:
+            if field_name in ('examples', 'variables'):
+                 return record.extra_data.get(field_name, {}) + record.json.get(field_name, {})
+            if field_name in ('context', 'input'):
+                return record.extra_data.get(field_name, '') + record.json.get(field_name, '')
 
     @web.rpc('usage_get_models_summary_presets', 'get_models_summary_presets')
     @rpc_tools.wrap_exceptions(RuntimeError)

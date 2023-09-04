@@ -110,7 +110,8 @@ class Event:
                     'prompt_name': prompt['name'],
                     'context': prompt['prompt'],
                     'examples': prompt['examples'],
-                    'variables': prompt['variables'],                    
+                    'variables': prompt['variables'], 
+                    'version': prompt['version']
                 }
             })
         self.api_monitor_data.append(payload)

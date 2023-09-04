@@ -13,7 +13,7 @@ class EndpointPD(BaseModel):
     date: datetime
     view_args: Optional[dict]
     query_params: Optional[dict]
-    json_: Optional[dict] = Field(alias='json')
+    json_: Optional[dict]
     files: Optional[dict]
     run_time: float
     status_code: int
@@ -22,3 +22,6 @@ class EndpointPD(BaseModel):
 
     class Config:
         orm_mode = True
+        fields = {
+            'json_': 'json',
+        }

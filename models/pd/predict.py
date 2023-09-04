@@ -46,6 +46,7 @@ class PredictPD(BaseModel):
     context: Optional[str]
     examples: Optional[bool]
     variables: Optional[bool]
+    version: Optional[str]
 
 
     class Config:
@@ -93,3 +94,7 @@ class PredictPD(BaseModel):
     @validator('variables', always=True, check_fields=False)
     def get_variables(cls, value, values):
         return bool(values['extra_data'].get('variables')) or bool(values['json_'].get('variables'))
+
+    @validator('version', always=True, check_fields=False)
+    def get_version(cls, value, values):
+        return values['extra_data'].get('version')
