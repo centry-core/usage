@@ -35,3 +35,4 @@ class UsageAPI(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     files = Column(JSON, unique=False, nullable=True)
     run_time = Column(Float, unique=False, default=0)
     status_code = Column(Integer, unique=False, nullable=True)
+    extra_data = Column(JSON, unique=False, nullable=True)

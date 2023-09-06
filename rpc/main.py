@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import Union, Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from hurry.filesize import size
 from sqlalchemy import func, asc, desc, case
 from pydantic import parse_obj_as
@@ -8,6 +8,8 @@ from pydantic import parse_obj_as
 from ..models.usage_vcu import UsageVCU
 from ..models.usage_storage import UsageStorage
 from ..models.usage_api import UsageAPI
+from ..models.pd.vcu import VcuPD
+from ..models.pd.endpoint import EndpointPD
 from ..utils.utils import calculate_readable_retention_policy
 
 from tools import rpc_tools, db_tools, MinioClient, MinioClientAdmin
@@ -29,33 +31,22 @@ class RPC:
             start_time: datetime | None = None,
             end_time: datetime | None = None
             ):
-        resource_usage = []
         if project_id:
-            query = UsageVCU.query.filter(
-                UsageVCU.project_id == project_id
-                )
+            query = UsageVCU.query.filter(UsageVCU.project_id == project_id)
         else:
             query = UsageVCU.query
         if start_time:
             query = query.filter(UsageVCU.start_time >= start_time.isoformat())
         if end_time:
+            end_time += timedelta(days=1)
             query = query.filter(UsageVCU.start_time <= end_time.isoformat())
         query_results = query.order_by(asc(UsageVCU.start_time)).all()
+        resource_usage = []
         for result in query_results:
             # Exclude tasks which run as a part of a test:
             if result.type == 'task' and result.test_report_id:
                 continue
-            resource_usage.append(
-                {
-                    'id': result.id,
-                    'project_id': result.project_id,
-                    'name': result.name,
-                    'type': result.type,
-                    'date': result.start_time.strftime("%d.%m.%Y %H:%M:%S"),
-                    'project_vcu': result.project_vcu,
-                    'platform_vcu': result.platform_vcu,
-                }
-            )
+            resource_usage.append(VcuPD.from_orm(result).dict())
         return resource_usage
 
     @web.rpc('usage_update_test_resource_usage', 'update_test_resource_usage')
@@ -170,6 +161,7 @@ class RPC:
         if start_time:
             subquery = subquery.filter(UsageStorage.date >= start_time.isoformat())
         if end_time:
+            end_time += timedelta(days=1)
             subquery = subquery.filter(UsageStorage.date <= end_time.isoformat())
 
         subquery = subquery.subquery()
@@ -269,20 +261,8 @@ class RPC:
     def _write_api_data_to_postgres(self):
         monitor_data = []
         for api_call in self.api_monitor_data:
-            record = UsageAPI(
-                project_id=api_call.get('project_id'),
-                mode=api_call.get('mode'),
-                user=api_call.get('user'),
-                endpoint=api_call.get('endpoint'),
-                method=api_call.get('method'),
-                date=api_call.get('date'),
-                view_args=api_call.get('view_args'),
-                query_params=api_call.get('query_params'),
-                json=api_call.get('json'),
-                files=api_call.get('files'),
-                run_time=api_call.get('run_time'),
-                status_code=api_call.get('status_code'),
-            )
+            api_attrs = EndpointPD.validate(api_call).dict(by_alias=True)
+            record = UsageAPI(**api_attrs)
             monitor_data.append(record)
         db_tools.bulk_save(monitor_data)
         self.api_monitor_data = []

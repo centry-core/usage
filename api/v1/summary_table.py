@@ -1,12 +1,10 @@
 import json
 from datetime import datetime
 from typing import Optional, Tuple, List
-from flask import request
+from flask import abort, request
 from pylon.core.tools import log
 
 from tools import auth, api_tools
-from ...utils.prompts import (get_successful_predicts, get_users, predicts_by_date,
-    get_top_promts_by_name)
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -18,15 +16,23 @@ class ProjectAPI(api_tools.APIModeHandler):
             start_time = datetime.fromisoformat(start_time.strip('Z'))
         if end_time := request.args.get('end_time'):
             end_time = datetime.fromisoformat(end_time.strip('Z'))
-        api_usage = [i.dict(exclude={'json_'}) for i in self.module.get_prompts_usage(
-            project_id, start_time, end_time)]   
+        page = int(request.args.get('pageNumber', 0))
+        limit = int(request.args.get('limit', 5))
+        sort = request.args.get('sort', 'date')
+        order = request.args.get('order', 'asc')
+        try:
+            paginator, api_usage = self.module.get_prompts_summary_table(
+                project_id, start_time, end_time, page, limit, sort, order
+                )
+        except KeyError:
+            abort(404)
+        api_usage = [
+            i.dict(exclude={'json_', 'integration_settings', 'extra_data'}) | i.dict()['integration_settings'] 
+            for i in api_usage
+            ]
         return {
-            'users': get_users(api_usage),
-            'predicts_total': len(api_usage), 
-            'successful_predicts': get_successful_predicts(api_usage),
-            'predicts_by_date': predicts_by_date(api_usage),
-            'top_promts_by_name': get_top_promts_by_name(api_usage),
             'rows': api_usage,
+            "total": paginator.total
             }, 200
 
 
