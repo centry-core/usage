@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import Union, Optional, List
 from datetime import datetime, timedelta
 from hurry.filesize import size
-from sqlalchemy import func, asc, desc, case, cast, Integer
+from sqlalchemy import func, asc, desc, case, cast, Integer, String, text
 from pydantic import parse_obj_as
 
 from ..models.usage_api import UsageAPI
@@ -56,7 +56,8 @@ class RPC:
             UsageAPI.project_id == project_id,
             UsageAPI.mode == config.DEFAULT_MODE,
             UsageAPI.endpoint == endpoint,
-            UsageAPI.method == 'POST'
+            UsageAPI.method == 'POST',
+            UsageAPI.extra_data.cast(String) != text("'null'")
             )
         if start_time:
             query = query.filter(UsageAPI.date >= start_time.isoformat())
@@ -84,7 +85,8 @@ class RPC:
             UsageAPI.project_id == project_id,
             UsageAPI.mode == config.DEFAULT_MODE,
             UsageAPI.endpoint == endpoint,
-            UsageAPI.method == 'POST'
+            UsageAPI.method == 'POST',
+            UsageAPI.extra_data.cast(String) != text("'null'")
             )
         if start_time:
             query = query.filter(UsageAPI.date >= start_time.isoformat())
