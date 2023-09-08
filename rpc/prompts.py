@@ -41,17 +41,17 @@ class RPC:
     def get_prompts_summary(
             self, project_id: int,
             start_time: datetime | None = None,
-            end_time: datetime | None = None, 
+            end_time: datetime | None = None,
             endpoint: str | None = None,
             ):
         if not endpoint:
             endpoint = self.descriptor.config['predict_endpoint']
         query = UsageAPI.query.with_entities(
-            UsageAPI.user, 
+            UsageAPI.user,
             UsageAPI.date,
             UsageAPI.run_time,
             UsageAPI.status_code,
-            UsageAPI.extra_data['prompt_name'].astext.label('prompt_name')           
+            UsageAPI.extra_data['prompt_name'].astext.label('prompt_name')
             ).filter(
             UsageAPI.project_id == project_id,
             UsageAPI.mode == config.DEFAULT_MODE,
@@ -65,17 +65,17 @@ class RPC:
             query = query.filter(UsageAPI.date <= end_time.isoformat())
         query_results = query.order_by(asc(UsageAPI.date)).all()
         return parse_obj_as(List[PredictShortPD], query_results)
-    
+
     @web.rpc('usage_get_prompts_summary_table', 'get_prompts_summary_table')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def get_prompts_summary_table(
             self, project_id: int,
             start_time: datetime | None = None,
             end_time: datetime | None = None,
-            page: int = 1, 
-            limit: int = 5, 
-            sort: str = 'date', 
-            order: str = 'asc', 
+            page: int = 1,
+            limit: int = 5,
+            sort: str = 'date',
+            order: str = 'asc',
             endpoint: str | None = None,
             ):
         if not endpoint:
@@ -130,7 +130,7 @@ class RPC:
         preset_db = UsageModelsSummaryPreset.query.filter(
             UsageModelsSummaryPreset.project_id == project_id,
             UsageModelsSummaryPreset.name == preset['name'],
-            ).first()    
+            ).first()
         preset_db.fields = preset['fields']
         preset_db.commit()
         return preset_db.to_json()

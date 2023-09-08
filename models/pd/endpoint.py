@@ -1,7 +1,7 @@
 from typing import Optional, Union
 from datetime import datetime
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, constr
 
 
 class EndpointPD(BaseModel):
