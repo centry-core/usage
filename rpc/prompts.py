@@ -11,9 +11,10 @@ from ..models.pd.summary_presets import SummaryPresetsPD
 
 from ..models.usage_models_summary_presets import UsageModelsSummaryPreset
 
-from tools import rpc_tools, config
+from tools import rpc_tools
 from pylon.core.tools import web, log
 
+DEFAULT_MODE = 'default'
 
 ODRER_MAPPING = {
     'project_id': UsageAPI.project_id,
@@ -54,7 +55,7 @@ class RPC:
             UsageAPI.extra_data['prompt_name'].astext.label('prompt_name')
             ).filter(
             UsageAPI.project_id == project_id,
-            UsageAPI.mode == config.DEFAULT_MODE,
+            UsageAPI.mode == DEFAULT_MODE,
             UsageAPI.endpoint == endpoint,
             UsageAPI.method == 'POST',
             UsageAPI.extra_data.cast(String) != text("'null'")
@@ -83,7 +84,7 @@ class RPC:
             endpoint = self.descriptor.config['predict_endpoint']
         query = UsageAPI.query.filter(
             UsageAPI.project_id == project_id,
-            UsageAPI.mode == config.DEFAULT_MODE,
+            UsageAPI.mode == DEFAULT_MODE,
             UsageAPI.endpoint == endpoint,
             UsageAPI.method == 'POST',
             UsageAPI.extra_data.cast(String) != text("'null'")
