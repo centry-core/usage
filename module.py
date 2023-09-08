@@ -89,7 +89,7 @@ class Module(module.ModuleModel):
                 title="Summary",
                 kind="slot",
                 prefix="models_summary_",
-                weight=5,
+                weight=10,
                 permissions={
                     "permissions": ["models.prompts"],
                     "recommended_roles": {
