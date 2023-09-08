@@ -28,7 +28,7 @@ class Event:
             name = payload['name'],
             type = 'test',
             test_uid_or_task_id = payload['test_uid'],
-            test_report_id = payload['id'],            
+            test_report_id = payload['id'],
             start_time = payload['start_time'],
             cpu = payload['test_config']['env_vars']['cpu_quota'],
             memory = payload['test_config']['env_vars']['memory_quota'],
@@ -67,7 +67,7 @@ class Event:
             ).first()
         resource_usage_task.duration = round(payload['task_duration'])
         resource_usage = {
-            'time': str(datetime.now()),          
+            'time': str(datetime.now()),
         }
         if payload['task_stats'] and 'kubernetes_stats' in payload['task_stats']:
             resource_usage.update({
@@ -78,7 +78,7 @@ class Event:
             resource_usage.update({
             'cpu': round(float(payload['task_stats']["cpu_stats"]["cpu_usage"]["total_usage"]) / 1000000000, 2),
             'memory_usage': round(float(payload['task_stats']["memory_stats"]["usage"]) / (1024 * 1024), 2),
-            'memory_limit': round(float(payload['task_stats']["memory_stats"]["limit"]) / (1024 * 1024), 2),     
+            'memory_limit': round(float(payload['task_stats']["memory_stats"]["limit"]) / (1024 * 1024), 2),
             })
 
         resource_usage_task.resource_usage = resource_usage
@@ -86,32 +86,32 @@ class Event:
 
     @web.event('usage_throughput_monitor')
     def throughput_monitor(self, context, event, payload) -> None:
-        self.throughput_monitor_data[(payload['project_id'], str(payload['integration_id']), 
+        self.throughput_monitor_data[(payload['project_id'], str(payload['integration_id']),
             payload['is_local'])] += payload['file_size']
 
     @web.event('usage_space_monitor')
     def space_monitor(self, context, event, payload) -> None:
-        self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
+        self.space_monitor_data[(payload['project_id'], str(payload['integration_id']),
             payload['is_local'])]['current_delta'] += payload['current_delta']
-        max_delta = self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
+        max_delta = self.space_monitor_data[(payload['project_id'], str(payload['integration_id']),
             payload['is_local'])]['max_delta']
-        current_delta = self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
+        current_delta = self.space_monitor_data[(payload['project_id'], str(payload['integration_id']),
             payload['is_local'])]['current_delta']
-        self.space_monitor_data[(payload['project_id'], str(payload['integration_id']), 
+        self.space_monitor_data[(payload['project_id'], str(payload['integration_id']),
             payload['is_local'])]['max_delta'] = max(max_delta, current_delta)
 
     @web.event('usage_api_monitor')
     def api_monitor(self, context, event, payload) -> None:
         if payload['endpoint'] == self.descriptor.config['predict_endpoint']:
-            prompt_id = payload['json']['prompt_id']
-            prompt = self.context.rpc_manager.timeout(2).prompts_get_by_id(payload['project_id'], prompt_id)
-            payload.update({
-                'extra_data': {
-                    'prompt_name': prompt['name'],
-                    'context': prompt['prompt'],
-                    'examples': prompt['examples'],
-                    'variables': prompt['variables'], 
-                    'version': prompt['version']
-                }
-            })
+            if prompt_id := payload.get('json', {}).get('prompt_id'):
+                prompt = self.context.rpc_manager.timeout(2).prompts_get_by_id(payload['project_id'], prompt_id)
+                payload.update({
+                    'extra_data': {
+                        'prompt_name': prompt['name'],
+                        'context': prompt['prompt'],
+                        'examples': prompt['examples'],
+                        'variables': prompt['variables'],
+                        'version': prompt['version']
+                    }
+                })
         self.api_monitor_data.append(payload)
