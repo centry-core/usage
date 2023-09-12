@@ -26,6 +26,7 @@ class UsageAPI(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     project_id = Column(Integer, unique=False, nullable=True)
     mode = Column(String(64), unique=False, nullable=True)
     user = Column(String(128), unique=False, nullable=True)
+    display_name = Column(String(128), unique=False, nullable=True)
     endpoint = Column(String(256), unique=False, nullable=True)
     method = Column(String(16), unique=False, nullable=True)
     date = Column(DateTime, default=datetime.utcnow)

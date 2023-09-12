@@ -34,7 +34,7 @@ class PredictPD(BaseModel):
     json_: Optional[dict] = Field(alias='json')
     extra_data: Optional[dict]
     project_id: int
-    user: str
+    display_name: str
     date: str
     prompt_id: Optional[int]
     prompt_name: Optional[str]
@@ -73,12 +73,6 @@ class PredictPD(BaseModel):
     def get_prompt_id(cls, value, values):
         return values['json_'].get('prompt_id')
 
-
-
-    # @validator('prompt_name', always=True, check_fields=False)
-    # def get_prompt_name(cls, value, values):
-    #     return values['extra_data'].get('prompt_name')
-
     @validator('integration_uid', always=True, check_fields=False)
     def get_integration_uid(cls, value, values):
         return values['json_'].get('integration_uid')
@@ -94,27 +88,3 @@ class PredictPD(BaseModel):
     @validator('run_time')
     def run_time_round(cls, value):
         return round(value, 2)
-
-    # @validator('context', always=True, check_fields=False)
-    # def get_context(cls, value: Optional[str], values):
-    #     result = value or ''
-    #     return (
-    #         result +
-    #         values['json_'].get('context', '')
-    #         )[:TEXT_LIMIT]
-    
-    # @validator('examples', always=True)
-    # def get_examples(cls, value, values) -> bool:
-    #     log.info('val get_examples %s :: %s', value, bool(value) or bool(values['json_'].get('examples')))
-    #     # return bool(values['extra_data'].get('examples')) or bool(values['json_'].get('examples'))
-    #     return
-    #
-    # @validator('variables', always=True)
-    # def get_variables(cls, value, values) -> bool:
-    #     log.info('val get_variables %s :: %s', value, bool(value) or bool(values['json_'].get('examples')))
-    #     # return bool(values['extra_data'].get('variables')) or bool(values['json_'].get('variables'))
-    #     return bool(value) or bool(values['json_'].get('variables'))
-
-    # @validator('version', always=True, check_fields=False)
-    # def get_version(cls, value, values):
-    #     return values['extra_data'].get('version')
