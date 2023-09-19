@@ -109,7 +109,7 @@ class Event:
                     'extra_data': {
                         'prompt_name': prompt['name'],
                         'context': prompt['prompt'],
-                        'examples': prompt['examples'],
+                        'examples': [example for example in prompt['examples'] if example['is_active']],
                         'variables': prompt['variables'],
                         'version': prompt['version']
                     }

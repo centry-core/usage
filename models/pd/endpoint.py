@@ -19,6 +19,7 @@ class EndpointPD(BaseModel):
     run_time: float
     status_code: int
     query_params: Optional[dict]
+    response: Optional[str]
     extra_data: Optional[dict]
 
     class Config:
