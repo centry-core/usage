@@ -59,7 +59,7 @@ class RPC:
             UsageAPI.mode == DEFAULT_MODE,
             UsageAPI.endpoint == endpoint,
             UsageAPI.method == 'POST',
-            UsageAPI.extra_data.cast(String) != text("'null'")
+            # UsageAPI.extra_data.cast(String) != text("'null'")
             )
         if start_time:
             query = query.filter(UsageAPI.date >= start_time.isoformat())
@@ -88,7 +88,7 @@ class RPC:
             UsageAPI.mode == DEFAULT_MODE,
             UsageAPI.endpoint == endpoint,
             UsageAPI.method == 'POST',
-            UsageAPI.extra_data.cast(String) != text("'null'")
+            # UsageAPI.extra_data.cast(String) != text("'null'")
             )
         if start_time:
             query = query.filter(UsageAPI.date >= start_time.isoformat())

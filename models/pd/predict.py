@@ -30,6 +30,12 @@ class PredictShortPD(BaseModel):
     def run_time_round(cls, value):
         return round(value, 2)
 
+    @validator('prompt_name')
+    def prompt_name_validator(cls, value):
+        if value is None:
+            return 'No prompt'
+        return value
+
 
 class PredictPD(BaseModel):
     text_limit: Optional[int] = None
@@ -46,9 +52,9 @@ class PredictPD(BaseModel):
     input: Optional[str]
     run_time: float
     status_code: int
-    context: Optional[str]
-    examples: Optional[dict]
-    variables: Optional[dict]
+    context: str = ''
+    examples: list = []
+    variables: list = []
     version: Optional[str]
     response: Optional[str]
 
@@ -68,7 +74,7 @@ class PredictPD(BaseModel):
 
     @root_validator(pre=False)
     def unpack_extra_data(cls, values: dict) -> dict:
-        log.info(values)
+        log.info(f'values: {values}')
         text_limit = values.get('text_limit')
         values.update(values.get('extra_data', {}))
 
@@ -123,7 +129,17 @@ class PredictPDWithTextLimit(PredictPD):
     variables: bool = False
 
     @root_validator(pre=False)
-    def unpack_bools(cls, values: dict) -> dict:
+    def unpack_extra_data(cls, values: dict) -> dict:
+        log.info(f'values: {values}')
+        text_limit = values.get('text_limit')
+        values.update(values.get('extra_data', {}))
+
         values['examples'] = bool(values.get('examples')) or bool(values['json_'].get('examples'))
         values['variables'] = bool(values.get('variables')) or bool(values['json_'].get('variables'))
+
+        values['context'] = values.get('context', '') + values['json_'].get('context', '')
+        values['context'] = values['context'][:text_limit]
+        if values['response']:
+            values['response'] = values['response'][:text_limit]
+
         return values

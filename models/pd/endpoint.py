@@ -12,15 +12,15 @@ class EndpointPD(BaseModel):
     endpoint: str
     method: constr(to_upper=True)
     date: datetime
-    view_args: Optional[dict]
-    query_params: Optional[dict]
-    json_: Optional[dict]
-    files: Optional[dict]
+    view_args: dict = {}
+    query_params: dict = {}
+    json_: dict = {}
+    files: dict = {}
     run_time: float
     status_code: int
-    query_params: Optional[dict]
+    query_params: dict = {}
     response: Optional[str]
-    extra_data: Optional[dict]
+    extra_data: dict = {}
 
     class Config:
         orm_mode = True

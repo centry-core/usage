@@ -30,12 +30,18 @@ class UsageAPI(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     endpoint = Column(String(256), unique=False, nullable=True)
     method = Column(String(16), unique=False, nullable=True)
     date = Column(DateTime, default=datetime.utcnow)
-    view_args = Column(JSON, unique=False, nullable=True)
-    query_params = Column(JSON, unique=False, nullable=True)
+    view_args = Column(JSON, unique=False, default={})
+    query_params = Column(JSON, unique=False, default={})
     json = Column(JSON, unique=False, nullable=True)
-    files = Column(JSON, unique=False, nullable=True)
+    files = Column(JSON, unique=False, default={})
     run_time = Column(Float, unique=False, default=0)
     status_code = Column(Integer, unique=False, nullable=True)
-    # alter table carrier.carrier.usage_api add response varchar
     response = Column(String, unique=False, nullable=True)
-    extra_data = Column(JSON, unique=False, nullable=True)
+    extra_data = Column(JSON, unique=False, default={})
+
+# add response column:
+# alter table carrier.carrier.usage_api add response varchar
+
+# change extra_data and files default value:
+# UPDATE carrier.carrier.usage_api SET extra_data = '{}' where cast (extra_data as text) = 'null';
+# UPDATE carrier.carrier.usage_api SET files = '{}' where cast (files as text) = 'null';

@@ -31,9 +31,9 @@ def predicts_by_date(predicts_usage: list):
         group = list(group)
         usage_by_date[key]['response_time'] = round(statistics.median(i['run_time'] for i in group), 2)
         usage_by_date[key]['predicts'] = len(group)
-    return [{'date': k, 
-             'response_time': v['response_time'], 
-             'predicts': v['predicts'], 
+    return [{'date': k,
+             'response_time': v['response_time'],
+             'predicts': v['predicts'],
             } for k, v in usage_by_date.items()]
 
 
