@@ -38,7 +38,7 @@ const SummaryTable = {
                 {
                     title: "project id",
                     field: "project_id",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "user",
@@ -53,52 +53,57 @@ const SummaryTable = {
                 {
                     title: "prompt id",
                     field: "prompt_id",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "prompt name",
                     field: "prompt_name",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "version",
                     field: "version",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "integration id",
                     field: "integration_uid",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "model name",
                     field: "model_name",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "temperature",
                     field: "temperature",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "max tokens",
                     field: "max_tokens",
-                    checked: true,
+                    checked: false,
+                },
+                {
+                    title: "context",
+                    field: "context",
+                    checked: false,
                 },
                 {
                     title: "max decode steps",
                     field: "max_decode_steps",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "top p",
                     field: "top_p",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "top k",
                     field: "top_k",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "input",
@@ -108,22 +113,22 @@ const SummaryTable = {
                 {
                     title: "examples",
                     field: "examples",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "variables",
                     field: "variables",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "run time",
                     field: "run_time",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "status",
                     field: "status_code",
-                    checked: true,
+                    checked: false,
                 }
             ],
             customPresetsTableData: [],
@@ -209,7 +214,7 @@ const SummaryTable = {
                 if (this.selectedPreset.fields.includes(field)) {
                     $('#tablePrompt').bootstrapTable('showColumn', field);
                 } else {
-                    $('#tablePrompt').bootstrapTable('hideColumn', field)
+                    $('#tablePrompt').bootstrapTable('hideColumn', field);
                 }
             })
             this.fillPresetTable();
@@ -236,7 +241,6 @@ const SummaryTable = {
                 url: `/api/v1/usage/summary_table/default/${getSelectedProjectId()}?start_time=${this.startTime}&end_time=${this.endTime}`,
                 queryParamsType: '',
                 queryParams: function(params) {
-                    // console.log(params)
                     return {
                         limit: params.pageSize,
                         sort: params.sortName,
@@ -245,7 +249,6 @@ const SummaryTable = {
                     };
                 },
                 responseHandler: function (data) {
-                    // console.log(data)
                     return {
                         total: data.total,
                         rows: data.rows
@@ -255,6 +258,11 @@ const SummaryTable = {
                 columns: tablePromptsColumns
             }
             $('#tablePrompt').bootstrapTable(tableOptions);
+            this.defaultPresetsTableData.forEach(column => {
+                if (!column.checked) {
+                    $('#tablePrompt').bootstrapTable('hideColumn', column.field);
+                }
+            })
         },
     },
     template: `
