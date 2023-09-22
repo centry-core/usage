@@ -26,10 +26,7 @@ class ProjectAPI(api_tools.APIModeHandler):
                 )
         except KeyError:
             abort(404)
-        api_usage = [
-            i.dict(exclude={'json_', 'integration_settings', 'extra_data'}) | i.dict()['integration_settings'] 
-            for i in api_usage
-            ]
+        api_usage = [i.dict() for i in api_usage]
         return {
             'rows': api_usage,
             "total": paginator.total

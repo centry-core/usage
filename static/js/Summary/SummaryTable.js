@@ -13,7 +13,7 @@ const SummaryTable = {
                 "name": "default",
                 "fields": [
                     "project_id",
-                    "user",
+                    "display_name",
                     "date",
                     "prompt_id",
                     "prompt_name",
@@ -42,7 +42,7 @@ const SummaryTable = {
                 },
                 {
                     title: "user",
-                    field: "user",
+                    field: "display_name",
                     checked: true,
                 },
                 {
@@ -273,7 +273,7 @@ const SummaryTable = {
                     <div class="d-flex">
                         <div class="complex-list">
                             <button class="btn btn-select btn-select__sm dropdown-toggle br-left d-flex align-items-center"
-                                type="button"   
+                                type="button"
                                 data-toggle="dropdown"
                                 aria-haspopup="true"
                                 aria-expanded="false">
@@ -318,7 +318,7 @@ const SummaryTable = {
                                     <div class="d-flex justify-content-between">
                                         <h3 class="font-h3 mr-4">{{ selectedPreset.name }}</h3>
                                         <div class="d-flex justify-content-start">
-                                            <button 
+                                            <button
                                                 v-if="selectedPreset.name !== 'default'"
                                                 class="btn btn-basic d-flex align-items-center mr-2" @click.stop="updatePreset(selectedPreset.name)"
                                                 >Save<i v-if="loadingUpdate" class="preview-loader__white ml-2"></i>
