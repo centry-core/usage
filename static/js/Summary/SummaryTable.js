@@ -9,28 +9,35 @@ const SummaryTable = {
             selectedPreset: {
                 name: 'default'
             },
+            allFields: [
+                "project_id",
+                "user",
+                "date",
+                "prompt_id",
+                "prompt_name",
+                "version",
+                "integration_uid",
+                "model_name",
+                "temperature",
+                "max_decode_steps",
+                "max_tokens",
+                "examples",
+                "context",
+                "variables",
+                "top_p",
+                "top_k",
+                "input",
+                "response",
+                "run_time",
+                "status_code",
+            ],
             defaultPreset: {
                 "name": "default",
                 "fields": [
-                    "project_id",
-                    "display_name",
+                    "user",
                     "date",
-                    "prompt_id",
-                    "prompt_name",
-                    "version",
-                    "integration_uid",
-                    "model_name",
-                    "temperature",
-                    "max_decode_steps",
-                    "max_tokens",
-                    "examples",
-                    "context",
-                    "variables",
-                    "top_p",
-                    "top_k",
                     "input",
-                    "run_time",
-                    "status_code",
+                    "response",
                 ]
             },
             allPresets: [],
@@ -42,7 +49,7 @@ const SummaryTable = {
                 },
                 {
                     title: "user",
-                    field: "display_name",
+                    field: "user",
                     checked: true,
                 },
                 {
@@ -111,6 +118,11 @@ const SummaryTable = {
                     checked: true,
                 },
                 {
+                    title: "output",
+                    field: "response",
+                    checked: true,
+                },
+                {
                     title: "examples",
                     field: "examples",
                     checked: false,
@@ -138,11 +150,6 @@ const SummaryTable = {
             loadingUpdate: false,
         }
     },
-    computed: {
-        queryDateParam() {
-            return this.startTime
-        }
-    },
     mounted() {
         this.$nextTick(() => {
             this.fetchAllPresets().then((data) => {
@@ -153,6 +160,55 @@ const SummaryTable = {
         })
         $(".dropdown-menu.close-outside").on("click", function (event) {
             event.stopPropagation();
+        });
+        $('#tablePrompt').on('expand-row.bs.table', function (e, index, row, $detail) {
+            $detail.html('Loading...');
+            const tableArea = ['<div>'];
+            ApiGetPromptField(row.id).then((data) => {
+                for (const key in data) {
+                    if (key === 'examples' || key === 'variables') {
+                        const textareas = [];
+                        data[key].forEach(row => {
+                            switch (key) {
+                                case 'variables':
+                                    var { name: firstValue, value: secondValue } = row;
+                                    break
+                                case 'examples':
+                                    var { input: firstValue, output: secondValue } = row;
+                                    break
+                            }
+                            textareas.push(`
+                                <div class="d-flex gap-3 mt-1">
+                                    <div class="position-relative flex-grow-1">
+                                        <textarea class="form-control form-control-alternative"
+                                            rows="3">${firstValue}</textarea>
+                                    </div>
+                                    <div class="position-relative flex-grow-1">
+                                        <textarea class="form-control form-control-alternative"
+                                            rows="3">${secondValue}</textarea>
+                                    </div>
+                                </div>
+                            `)
+                        })
+                        tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">' + key + ':</div><div class="flex-grow-1">' + textareas.join('') + '</div></div>')
+                    } else if (key === 'input' || key === 'response') {
+                        const field = key === 'response' ? 'output' : key.split('_').join(' ');
+                        tableArea.push(`<div class="d-flex mb-2"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">${field}:</div>
+                            <div class="position-relative flex-grow-1">
+                                <textarea class="form-control form-control-alternative"
+                                    rows="3">${data[key]}</textarea>
+                            </div>
+                        </div>`)
+                    } else {
+                        const field = key.split('_').join(' ');
+                        tableArea.push('<div class="d-flex mb-2"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + data[key] + '</div></div>')
+                    }
+                }
+            }).finally(() => {
+                tableArea.push('</div>');
+                tableArea.join('');
+                $detail.html(tableArea);
+            })
         });
     },
     methods: {
@@ -174,6 +230,7 @@ const SummaryTable = {
             }).then(() => {
                 this.fetchAllPresets().then((data) => {
                     this.allPresets = [ this.defaultPreset, ...data ];
+                    this.fillPresetTable();
                 })
             }).finally(() => {
                 this.loadingUpdate = false;
@@ -202,15 +259,13 @@ const SummaryTable = {
                 this.loadingDelete = false;
                 this.allPresets = this.allPresets.filter(preset => preset.name !== presetName);
                 if (this.selectedPreset.name === presetName) {
-                    this.selectedPreset = this.defaultPreset;
-                    this.fillPresetTable();
-                    $('#tablePrompt').bootstrapTable('showAllColumns');
+                    this.selectPreset(this.defaultPreset);
                 }
             })
         },
         selectPreset(selectedPreset) {
             this.selectedPreset = selectedPreset;
-            this.defaultPreset.fields.forEach(field => {
+            this.allFields.forEach(field => {
                 if (this.selectedPreset.fields.includes(field)) {
                     $('#tablePrompt').bootstrapTable('showColumn', field);
                 } else {
@@ -226,7 +281,10 @@ const SummaryTable = {
             }
             this.customPresetsTableData = _.cloneDeep(this.defaultPresetsTableData.map(value => {
                 if (this.selectedPreset.fields.includes(value.field)) {
-                    return value
+                    return {
+                        ...value,
+                        checked: true,
+                    }
                 } else {
                     return {
                         ...value,
@@ -262,7 +320,7 @@ const SummaryTable = {
                 if (!column.checked) {
                     $('#tablePrompt').bootstrapTable('hideColumn', column.field);
                 }
-            })
+            });
         },
     },
     template: `
@@ -352,7 +410,7 @@ const SummaryTable = {
                     data-page-list="[5, 10, 15]"
                     data-pagination="true"
                     data-side-pagination="server"
-                    data-data-field="rows"
+                    data-detail-view="true"
                     data-loading-template="loadingTemplate"
                     data-pagination-pre-text="<img src='/design-system/static/assets/ico/arrow_left.svg'>"
                     data-pagination-next-text="<img src='/design-system/static/assets/ico/arrow_right.svg'>"

@@ -14,10 +14,9 @@ const ApiFetchSummary = async (startTime, endTime) => {
     })
     return res.json();
 }
-
-const ApiGetPromptField = async (field, rowId) => {
+const ApiGetPromptField = async (rowId) => {
     const api_url = V.build_api_url('usage', 'summary_table_field')
-    const res = await fetch(`${api_url}/${getSelectedProjectId()}?id=${rowId}&field=${field}`, {
+    const res = await fetch(`${api_url}/${getSelectedProjectId()}?id=${rowId}`, {
         method: 'GET',
     })
     return res.json();
