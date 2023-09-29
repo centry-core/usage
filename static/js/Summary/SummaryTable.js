@@ -9,28 +9,35 @@ const SummaryTable = {
             selectedPreset: {
                 name: 'default'
             },
+            allFields: [
+                "project_id",
+                "user",
+                "date",
+                "prompt_id",
+                "prompt_name",
+                "version",
+                "integration_uid",
+                "model_name",
+                "temperature",
+                "max_decode_steps",
+                "max_tokens",
+                "examples",
+                "context",
+                "variables",
+                "top_p",
+                "top_k",
+                "input",
+                "response",
+                "run_time",
+                "status_code",
+            ],
             defaultPreset: {
                 "name": "default",
                 "fields": [
-                    "project_id",
                     "user",
                     "date",
-                    "prompt_id",
-                    "prompt_name",
-                    "version",
-                    "integration_uid",
-                    "model_name",
-                    "temperature",
-                    "max_decode_steps",
-                    "max_tokens",
-                    "examples",
-                    "context",
-                    "variables",
-                    "top_p",
-                    "top_k",
                     "input",
-                    "run_time",
-                    "status_code",
+                    "response",
                 ]
             },
             allPresets: [],
@@ -38,7 +45,7 @@ const SummaryTable = {
                 {
                     title: "project id",
                     field: "project_id",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "user",
@@ -53,52 +60,57 @@ const SummaryTable = {
                 {
                     title: "prompt id",
                     field: "prompt_id",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "prompt name",
                     field: "prompt_name",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "version",
                     field: "version",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "integration id",
                     field: "integration_uid",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "model name",
                     field: "model_name",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "temperature",
                     field: "temperature",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "max tokens",
                     field: "max_tokens",
-                    checked: true,
+                    checked: false,
+                },
+                {
+                    title: "context",
+                    field: "context",
+                    checked: false,
                 },
                 {
                     title: "max decode steps",
                     field: "max_decode_steps",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "top p",
                     field: "top_p",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "top k",
                     field: "top_k",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "input",
@@ -106,24 +118,29 @@ const SummaryTable = {
                     checked: true,
                 },
                 {
+                    title: "output",
+                    field: "response",
+                    checked: true,
+                },
+                {
                     title: "examples",
                     field: "examples",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "variables",
                     field: "variables",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "run time",
                     field: "run_time",
-                    checked: true,
+                    checked: false,
                 },
                 {
                     title: "status",
                     field: "status_code",
-                    checked: true,
+                    checked: false,
                 }
             ],
             customPresetsTableData: [],
@@ -131,11 +148,6 @@ const SummaryTable = {
             loadingSaveAs: false,
             loadingDelete: false,
             loadingUpdate: false,
-        }
-    },
-    computed: {
-        queryDateParam() {
-            return this.startTime
         }
     },
     mounted() {
@@ -148,6 +160,55 @@ const SummaryTable = {
         })
         $(".dropdown-menu.close-outside").on("click", function (event) {
             event.stopPropagation();
+        });
+        $('#tablePrompt').on('expand-row.bs.table', function (e, index, row, $detail) {
+            $detail.html('Loading...');
+            const tableArea = ['<div>'];
+            ApiGetPromptField(row.id).then((data) => {
+                for (const key in data) {
+                    if (key === 'examples' || key === 'variables') {
+                        const textareas = [];
+                        data[key].forEach(row => {
+                            switch (key) {
+                                case 'variables':
+                                    var { name: firstValue, value: secondValue } = row;
+                                    break
+                                case 'examples':
+                                    var { input: firstValue, output: secondValue } = row;
+                                    break
+                            }
+                            textareas.push(`
+                                <div class="d-flex gap-3 mt-1">
+                                    <div class="position-relative flex-grow-1">
+                                        <textarea class="form-control form-control-alternative"
+                                            rows="3">${firstValue}</textarea>
+                                    </div>
+                                    <div class="position-relative flex-grow-1">
+                                        <textarea class="form-control form-control-alternative"
+                                            rows="3">${secondValue}</textarea>
+                                    </div>
+                                </div>
+                            `)
+                        })
+                        tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">' + key + ':</div><div class="flex-grow-1">' + textareas.join('') + '</div></div>')
+                    } else if (key === 'input' || key === 'response') {
+                        const field = key === 'response' ? 'output' : key.split('_').join(' ');
+                        tableArea.push(`<div class="d-flex mb-2"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">${field}:</div>
+                            <div class="position-relative flex-grow-1">
+                                <textarea class="form-control form-control-alternative"
+                                    rows="3">${data[key]}</textarea>
+                            </div>
+                        </div>`)
+                    } else {
+                        const field = key.split('_').join(' ');
+                        tableArea.push('<div class="d-flex mb-2"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + data[key] + '</div></div>')
+                    }
+                }
+            }).finally(() => {
+                tableArea.push('</div>');
+                tableArea.join('');
+                $detail.html(tableArea);
+            })
         });
     },
     methods: {
@@ -169,6 +230,7 @@ const SummaryTable = {
             }).then(() => {
                 this.fetchAllPresets().then((data) => {
                     this.allPresets = [ this.defaultPreset, ...data ];
+                    this.fillPresetTable();
                 })
             }).finally(() => {
                 this.loadingUpdate = false;
@@ -197,19 +259,17 @@ const SummaryTable = {
                 this.loadingDelete = false;
                 this.allPresets = this.allPresets.filter(preset => preset.name !== presetName);
                 if (this.selectedPreset.name === presetName) {
-                    this.selectedPreset = this.defaultPreset;
-                    this.fillPresetTable();
-                    $('#tablePrompt').bootstrapTable('showAllColumns');
+                    this.selectPreset(this.defaultPreset);
                 }
             })
         },
         selectPreset(selectedPreset) {
             this.selectedPreset = selectedPreset;
-            this.defaultPreset.fields.forEach(field => {
+            this.allFields.forEach(field => {
                 if (this.selectedPreset.fields.includes(field)) {
                     $('#tablePrompt').bootstrapTable('showColumn', field);
                 } else {
-                    $('#tablePrompt').bootstrapTable('hideColumn', field)
+                    $('#tablePrompt').bootstrapTable('hideColumn', field);
                 }
             })
             this.fillPresetTable();
@@ -221,7 +281,10 @@ const SummaryTable = {
             }
             this.customPresetsTableData = _.cloneDeep(this.defaultPresetsTableData.map(value => {
                 if (this.selectedPreset.fields.includes(value.field)) {
-                    return value
+                    return {
+                        ...value,
+                        checked: true,
+                    }
                 } else {
                     return {
                         ...value,
@@ -236,7 +299,6 @@ const SummaryTable = {
                 url: `/api/v1/usage/summary_table/default/${getSelectedProjectId()}?start_time=${this.startTime}&end_time=${this.endTime}`,
                 queryParamsType: '',
                 queryParams: function(params) {
-                    // console.log(params)
                     return {
                         limit: params.pageSize,
                         sort: params.sortName,
@@ -245,7 +307,6 @@ const SummaryTable = {
                     };
                 },
                 responseHandler: function (data) {
-                    // console.log(data)
                     return {
                         total: data.total,
                         rows: data.rows
@@ -255,6 +316,11 @@ const SummaryTable = {
                 columns: tablePromptsColumns
             }
             $('#tablePrompt').bootstrapTable(tableOptions);
+            this.defaultPresetsTableData.forEach(column => {
+                if (!column.checked) {
+                    $('#tablePrompt').bootstrapTable('hideColumn', column.field);
+                }
+            });
         },
     },
     template: `
@@ -265,7 +331,7 @@ const SummaryTable = {
                     <div class="d-flex">
                         <div class="complex-list">
                             <button class="btn btn-select btn-select__sm dropdown-toggle br-left d-flex align-items-center"
-                                type="button"   
+                                type="button"
                                 data-toggle="dropdown"
                                 aria-haspopup="true"
                                 aria-expanded="false">
@@ -310,7 +376,7 @@ const SummaryTable = {
                                     <div class="d-flex justify-content-between">
                                         <h3 class="font-h3 mr-4">{{ selectedPreset.name }}</h3>
                                         <div class="d-flex justify-content-start">
-                                            <button 
+                                            <button
                                                 v-if="selectedPreset.name !== 'default'"
                                                 class="btn btn-basic d-flex align-items-center mr-2" @click.stop="updatePreset(selectedPreset.name)"
                                                 >Save<i v-if="loadingUpdate" class="preview-loader__white ml-2"></i>
@@ -344,7 +410,7 @@ const SummaryTable = {
                     data-page-list="[5, 10, 15]"
                     data-pagination="true"
                     data-side-pagination="server"
-                    data-data-field="rows"
+                    data-detail-view="true"
                     data-loading-template="loadingTemplate"
                     data-pagination-pre-text="<img src='/design-system/static/assets/ico/arrow_left.svg'>"
                     data-pagination-next-text="<img src='/design-system/static/assets/ico/arrow_right.svg'>"

@@ -6,7 +6,7 @@ from sqlalchemy import func, asc, desc, case, cast, Integer, String, text
 from pydantic import parse_obj_as
 
 from ..models.usage_api import UsageAPI
-from ..models.pd.predict import PredictPD, PredictShortPD
+from ..models.pd.predict import PredictPDWithTextLimit, PredictShortPD, PredictPD
 from ..models.pd.summary_presets import SummaryPresetsPD
 
 from ..models.usage_models_summary_presets import UsageModelsSummaryPreset
@@ -18,10 +18,11 @@ DEFAULT_MODE = 'default'
 
 ODRER_MAPPING = {
     'project_id': UsageAPI.project_id,
-    'user': UsageAPI.user,
+    'user': UsageAPI.display_name,
     'date': UsageAPI.date,
     'run_time': UsageAPI.run_time,
     'status_code': UsageAPI.status_code,
+    'response': UsageAPI.response,
     'prompt_id': cast(UsageAPI.json['prompt_id'].astext, Integer),
     'prompt_name': UsageAPI.extra_data['prompt_name'].astext,
     'integration_uid': UsageAPI.json['integration_uid'].astext,
@@ -48,7 +49,7 @@ class RPC:
         if not endpoint:
             endpoint = self.descriptor.config['predict_endpoint']
         query = UsageAPI.query.with_entities(
-            UsageAPI.user,
+            UsageAPI.display_name,
             UsageAPI.date,
             UsageAPI.run_time,
             UsageAPI.status_code,
@@ -58,7 +59,7 @@ class RPC:
             UsageAPI.mode == DEFAULT_MODE,
             UsageAPI.endpoint == endpoint,
             UsageAPI.method == 'POST',
-            UsageAPI.extra_data.cast(String) != text("'null'")
+            # UsageAPI.extra_data.cast(String) != text("'null'")
             )
         if start_time:
             query = query.filter(UsageAPI.date >= start_time.isoformat())
@@ -87,7 +88,7 @@ class RPC:
             UsageAPI.mode == DEFAULT_MODE,
             UsageAPI.endpoint == endpoint,
             UsageAPI.method == 'POST',
-            UsageAPI.extra_data.cast(String) != text("'null'")
+            # UsageAPI.extra_data.cast(String) != text("'null'")
             )
         if start_time:
             query = query.filter(UsageAPI.date >= start_time.isoformat())
@@ -98,17 +99,14 @@ class RPC:
         order_conditon = ODRER_MAPPING[sort]
         query = query.order_by(order_func(order_conditon))
         paginator = query.paginate(page=page, per_page=limit)
-        return paginator, parse_obj_as(List[PredictPD], paginator.items)
+        return paginator, parse_obj_as(List[PredictPDWithTextLimit], paginator.items)
 
     @web.rpc('usage_get_prompts_summary_table_value', 'get_prompts_summary_table_value')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def get_prompts_summary_table_value(self, field_id: int, field_name: str):
+    def get_prompts_summary_table_value(self, field_id: int):
         record = UsageAPI.query.get_or_404(field_id)
-        if record:
-            if field_name in ('examples', 'variables'):
-                 return record.extra_data.get(field_name, []) + record.json.get(field_name, [])
-            if field_name in ('context', 'input'):
-                return record.extra_data.get(field_name, '') + record.json.get(field_name, '')
+        predict = PredictPD.from_orm(record)
+        return predict.dict()
 
     @web.rpc('usage_get_models_summary_presets', 'get_models_summary_presets')
     @rpc_tools.wrap_exceptions(RuntimeError)
