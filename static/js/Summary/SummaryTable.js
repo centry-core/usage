@@ -12,9 +12,11 @@ const SummaryTable = {
             allFields: [
                 "project_id",
                 "user",
+                "roles",
                 "date",
                 "prompt_id",
                 "prompt_name",
+                "prompt_type",
                 "version",
                 "integration_uid",
                 "model_name",
@@ -53,6 +55,11 @@ const SummaryTable = {
                     checked: true,
                 },
                 {
+                    title: "roles",
+                    field: "roles",
+                    checked: false,
+                },
+                {
                     title: "date",
                     field: "date",
                     checked: true,
@@ -65,6 +72,11 @@ const SummaryTable = {
                 {
                     title: "prompt name",
                     field: "prompt_name",
+                    checked: false,
+                },
+                {
+                    title: "prompt type",
+                    field: "prompt_type",
                     checked: false,
                 },
                 {
@@ -167,38 +179,26 @@ const SummaryTable = {
             ApiGetPromptField(row.id).then((data) => {
                 for (const key in data) {
                     if (key === 'examples' || key === 'variables') {
-                        const textareas = [];
+                        const textfields = [];
                         data[key].forEach(row => {
-                            switch (key) {
-                                case 'variables':
-                                    var { name: firstValue, value: secondValue } = row;
-                                    break
-                                case 'examples':
-                                    var { input: firstValue, output: secondValue } = row;
-                                    break
-                            }
-                            textareas.push(`
-                                <div class="d-flex gap-3 mt-1">
-                                    <div class="position-relative flex-grow-1">
-                                        <textarea class="form-control form-control-alternative"
-                                            rows="3">${firstValue}</textarea>
-                                    </div>
-                                    <div class="position-relative flex-grow-1">
-                                        <textarea class="form-control form-control-alternative"
-                                            rows="3">${secondValue}</textarea>
-                                    </div>
-                                </div>
+                            delete row["id"]
+                            delete row["prompt_id"]
+                            delete row["created_at"]
+                            delete row["is_active"]
+                            textfields.push(`
+                                <div class="d-flex gap-3"><pre>${JSON.stringify(row, null, 4)}</pre></div>
                             `)
                         })
-                        tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">' + key + ':</div><div class="flex-grow-1">' + textareas.join('') + '</div></div>')
-                    } else if (key === 'input' || key === 'response') {
-                        const field = key === 'response' ? 'output' : key.split('_').join(' ');
-                        tableArea.push(`<div class="d-flex mb-2"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">${field}:</div>
-                            <div class="position-relative flex-grow-1">
-                                <textarea class="form-control form-control-alternative"
-                                    rows="3">${data[key]}</textarea>
-                            </div>
-                        </div>`)
+                        tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">' + key + ':</div><div>' + textfields.join('') + '</div></div>')
+                    } else if (key === 'response') {
+                        const field = 'output';
+                        const textfields = [];
+                        data[key]['messages'].forEach(row => {
+                            textfields.push(`
+                                <div class="d-flex gap-3">${row["content"]}</div>
+                            `)
+                        })
+                        tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold flex-shrink-0 text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + textfields.join('') + '</div></div>')
                     } else {
                         const field = key.split('_').join(' ');
                         tableArea.push('<div class="d-flex mb-2"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + data[key] + '</div></div>')

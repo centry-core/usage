@@ -31,8 +31,8 @@ def vcu_usage_by_date(resource_usage: list):
         date = row['date'].split()[0]
         usage_by_date[date]['project_vcu'] += row['project_vcu']
         usage_by_date[date]['platform_vcu'] += row['platform_vcu']
-    return [{'date': k, 
-             'project_vcu': v['project_vcu'], 
+    return [{'date': k,
+             'project_vcu': v['project_vcu'],
              'platform_vcu': v['platform_vcu'],
             } for k, v in usage_by_date.items()]
 

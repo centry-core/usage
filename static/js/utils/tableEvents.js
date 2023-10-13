@@ -8,6 +8,10 @@ var tablePromptsColumns = [
         field: 'user',
         sortable: true,
     }, {
+        title: 'roles',
+        field: 'roles',
+        sortable: true,
+    }, {
         title: 'date',
         field: 'date',
         sortable: true,
@@ -19,6 +23,10 @@ var tablePromptsColumns = [
     }, {
         title: 'prompt name',
         field: 'prompt_name',
+        sortable: true,
+    }, {
+        title: 'prompt type',
+        field: 'prompt_type',
         sortable: true,
     }, {
         title: 'version',
@@ -101,7 +109,7 @@ var ParamsTable = {
         return `
             <div class="custom-input custom-input__sm">
                 <input type="text" value="${value}" disabled>
-            </div> 
+            </div>
         `
     },
     booleanFormatter(value, row, index, field) {
@@ -127,7 +135,7 @@ var ParamsTable = {
         return `
             <div class="custom-input custom-input__sm" style="width: 150px;">
                 <input type="text" value="${text}..." disabled>
-            </div> 
+            </div>
         `
     },
 }
