@@ -120,7 +120,7 @@ class Event:
                         'prompt_type': prompt['type'],
                         'context': prompt['prompt'],
                         'examples': [example for example in prompt['examples'] if example['is_active']],
-                        'variables': prompt['variables'],
+                        'variables': {variable['name']: variable['value'] for variable in prompt['variables']},
                         'version': prompt['version']
                     }
                 })

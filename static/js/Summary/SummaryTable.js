@@ -178,7 +178,7 @@ const SummaryTable = {
             const tableArea = ['<div>'];
             ApiGetPromptField(row.id).then((data) => {
                 for (const key in data) {
-                    if (key === 'examples' || key === 'variables') {
+                    if (key === 'examples') {
                         const textfields = [];
                         data[key].forEach(row => {
                             delete row["id"]
@@ -186,10 +186,12 @@ const SummaryTable = {
                             delete row["created_at"]
                             delete row["is_active"]
                             textfields.push(`
-                                <div class="d-flex gap-3"><pre>${JSON.stringify(row, null, 4)}</pre></div>
+                                <div class="d-flex gap-3">${JSON.stringify(row, null, 4)}</div>
                             `)
                         })
-                        tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">' + key + ':</div><div>' + textfields.join('') + '</div></div>')
+                        tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold flex-shrink-0 text-gray-800 font-h5" style="width: 125px">' + key + ':</div><div>' + textfields.join('') + '</div></div>')
+                    } else if (key === 'variables') {
+                        tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold flex-shrink-0 text-gray-800 font-h5" style="width: 125px">' + key + ':</div><div>' + JSON.stringify(data[key], null, 4) + '</div></div>')
                     } else if (key === 'response') {
                         const field = 'output';
                         const textfields = [];
@@ -201,7 +203,7 @@ const SummaryTable = {
                         tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold flex-shrink-0 text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + textfields.join('') + '</div></div>')
                     } else {
                         const field = key.split('_').join(' ');
-                        tableArea.push('<div class="d-flex mb-2"><div class="d-inline-block font-bold text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + data[key] + '</div></div>')
+                        tableArea.push('<div class="d-flex mb-2"><div class="d-inline-block font-bold flex-shrink-0 text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + data[key] + '</div></div>')
                     }
                 }
             }).finally(() => {

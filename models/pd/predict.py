@@ -57,7 +57,7 @@ class PredictPD(BaseModel):
     status_code: int
     context: str = ''
     examples: list = []
-    variables: list = []
+    variables: dict = {}
     version: Optional[str]
     response: Optional[str]
 
@@ -81,7 +81,9 @@ class PredictPD(BaseModel):
         values.update(values.get('extra_data', {}))
 
         values['examples'] = values.get('examples', []) + values['json_'].get('examples', [])
-        values['variables'] = values.get('variables', []) + values['json_'].get('variables', [])
+        if isinstance(values['variables'], list):
+            values['variables'] = {variable['name']: variable['value'] for variable in values['variables']}
+        values['variables'].update(values['json_'].get('variables', {}))
 
         values['context'] = values.get('context', '') + values['json_'].get('context', '')
         values['context'] = values['context'][:text_limit]
