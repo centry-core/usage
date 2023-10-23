@@ -14,7 +14,7 @@
 
 from datetime import datetime
 from sqlalchemy import Column, Integer, DateTime, String, Float
-from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.dialects.postgresql import JSON, ARRAY
 
 from tools import db, db_tools, rpc_tools
 
@@ -27,6 +27,7 @@ class UsageAPI(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     mode = Column(String(64), unique=False, nullable=True)
     user = Column(String(128), unique=False, nullable=True)
     display_name = Column(String(128), unique=False, nullable=True)
+    roles = Column(ARRAY(String), default=[])
     endpoint = Column(String(256), unique=False, nullable=True)
     method = Column(String(16), unique=False, nullable=True)
     date = Column(DateTime, default=datetime.utcnow)
@@ -45,3 +46,6 @@ class UsageAPI(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
 # change extra_data and files default value:
 # UPDATE carrier.carrier.usage_api SET extra_data = '{}' where cast (extra_data as text) = 'null';
 # UPDATE carrier.carrier.usage_api SET files = '{}' where cast (files as text) = 'null';
+
+# add roles column:
+# ALTER TABLE usage_api ADD COLUMN roles varchar(64)[] DEFAULT '{}'::varchar(64)[];

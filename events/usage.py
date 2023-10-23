@@ -103,14 +103,27 @@ class Event:
     @web.event('usage_api_monitor')
     def api_monitor(self, context, event, payload) -> None:
         if payload['endpoint'] == self.descriptor.config['predict_endpoint']:
+            if payload.get('json', {}).get('chat_history'):
+                del payload['json']['chat_history']
+            if payload.get('response'):
+                try:
+                    response = json.loads(payload['response'])
+                    for msg in response.get('messages', []):
+                        if msg['type'] == 'image':
+                            msg['content'] = msg['content']['type']
+                    payload['response'] = json.dumps(response)
+                except Exception:
+                    pass
+
             if prompt_id := payload.get('json', {}).get('prompt_id'):
                 prompt = self.context.rpc_manager.timeout(2).prompts_get_by_id(payload['project_id'], prompt_id)
                 payload.update({
                     'extra_data': {
                         'prompt_name': prompt['name'],
+                        'prompt_type': prompt['type'],
                         'context': prompt['prompt'],
                         'examples': [example for example in prompt['examples'] if example['is_active']],
-                        'variables': prompt['variables'],
+                        'variables': {variable['name']: variable['value'] for variable in prompt['variables']},
                         'version': prompt['version']
                     }
                 })

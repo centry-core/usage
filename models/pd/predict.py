@@ -1,3 +1,4 @@
+import json
 from typing import Optional, Union
 from datetime import datetime
 
@@ -44,9 +45,11 @@ class PredictPD(BaseModel):
     extra_data: Optional[dict]
     project_id: int
     user: str
+    roles: list
     date: str
     prompt_id: Optional[int]
     prompt_name: Optional[str]
+    prompt_type: Optional[str]
     integration_uid: Optional[str]
     integration_settings: Optional[dict]
     input: Optional[str]
@@ -54,7 +57,7 @@ class PredictPD(BaseModel):
     status_code: int
     context: str = ''
     examples: list = []
-    variables: list = []
+    variables: dict = {}
     version: Optional[str]
     response: Optional[str]
 
@@ -74,17 +77,29 @@ class PredictPD(BaseModel):
 
     @root_validator(pre=False)
     def unpack_extra_data(cls, values: dict) -> dict:
-        log.info(f'values: {values}')
         text_limit = values.get('text_limit')
         values.update(values.get('extra_data', {}))
 
         values['examples'] = values.get('examples', []) + values['json_'].get('examples', [])
-        values['variables'] = values.get('variables', []) + values['json_'].get('variables', [])
+        if isinstance(values['variables'], list):
+            values['variables'] = {variable['name']: variable['value'] for variable in values['variables']}
+        values['variables'].update(values['json_'].get('variables', {}))
 
         values['context'] = values.get('context', '') + values['json_'].get('context', '')
         values['context'] = values['context'][:text_limit]
+
         if values['response']:
-            values['response'] = values['response'][:text_limit]
+            response = json.loads(values['response'])
+            if isinstance(response, str):
+                response = {
+                    'messages': [
+                        {
+                            'type': 'text',
+                            'content': response
+                        }
+                    ]
+                }
+            values['response'] = response
 
         return values
 
@@ -127,10 +142,10 @@ class PredictPDWithTextLimit(PredictPD):
     text_limit: Optional[int] = 50
     examples: bool = False
     variables: bool = False
+    response: Optional[str]
 
     @root_validator(pre=False)
     def unpack_extra_data(cls, values: dict) -> dict:
-        log.info(f'values: {values}')
         text_limit = values.get('text_limit')
         values.update(values.get('extra_data', {}))
 
@@ -139,7 +154,12 @@ class PredictPDWithTextLimit(PredictPD):
 
         values['context'] = values.get('context', '') + values['json_'].get('context', '')
         values['context'] = values['context'][:text_limit]
-        if values['response']:
-            values['response'] = values['response'][:text_limit]
 
+        if values['response']:
+            try:
+                response = json.loads(values['response'])
+                values['response'] = response['messages'][0]['content'][:text_limit]
+            except (KeyError, TypeError):
+                if isinstance(response, str):
+                    values['response'] = response[:text_limit]
         return values
