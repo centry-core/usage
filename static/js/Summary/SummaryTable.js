@@ -163,6 +163,7 @@ const SummaryTable = {
         }
     },
     mounted() {
+        var self = this;
         this.$nextTick(() => {
             this.fetchAllPresets().then((data) => {
                 this.allPresets = [ this.defaultPreset, ...data ];
@@ -196,14 +197,16 @@ const SummaryTable = {
                         const field = 'output';
                         const textfields = [];
                         data[key]['messages'].forEach(row => {
+                            const field_data = self.encodeString(row["content"]);
                             textfields.push(`
-                                <div class="d-flex gap-3">${row["content"]}</div>
+                                <div class="d-flex gap-3">${field_data}</div>
                             `)
                         })
                         tableArea.push('<div class="d-flex mb-3"><div class="d-inline-block font-bold flex-shrink-0 text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + textfields.join('') + '</div></div>')
                     } else {
                         const field = key.split('_').join(' ');
-                        tableArea.push('<div class="d-flex mb-2"><div class="d-inline-block font-bold flex-shrink-0 text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + data[key] + '</div></div>')
+                        const field_data = self.encodeString(data[key]);
+                        tableArea.push('<div class="d-flex mb-2"><div class="d-inline-block font-bold flex-shrink-0 text-gray-800 font-h5" style="width: 125px">' + field + ':</div><div>' + field_data + '</div></div>')
                     }
                 }
             }).finally(() => {
@@ -324,6 +327,15 @@ const SummaryTable = {
                 }
             });
         },
+        encodeString(value) {
+            if (value != null) {
+                return value.toString().replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            }
+            else {
+                return value;
+            }
+        },
+
     },
     template: `
         <div class="card card-table mt-3 pb-4">

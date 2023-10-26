@@ -65,24 +65,25 @@ class Event:
         resource_usage_task = UsageVCU.query.filter(
             UsageVCU.task_result_id == payload['id']
             ).first()
-        resource_usage_task.duration = round(payload['task_duration'])
-        resource_usage = {
-            'time': str(datetime.now()),
-        }
-        if payload['task_stats'] and 'kubernetes_stats' in payload['task_stats']:
-            resource_usage.update({
-                'cpu_limit': int(payload['task_stats']['kubernetes_stats'][0]['cpu_limit']),
-                'memory_limit': payload['task_stats']['kubernetes_stats'][0]['memory_limit']
-            })
-        elif payload['task_stats']:
-            resource_usage.update({
-            'cpu': round(float(payload['task_stats']["cpu_stats"]["cpu_usage"]["total_usage"]) / 1000000000, 2),
-            'memory_usage': round(float(payload['task_stats']["memory_stats"]["usage"]) / (1024 * 1024), 2),
-            'memory_limit': round(float(payload['task_stats']["memory_stats"]["limit"]) / (1024 * 1024), 2),
-            })
+        if resource_usage_task:
+            resource_usage_task.duration = round(payload['task_duration'])
+            resource_usage = {
+                'time': str(datetime.now()),
+            }
+            if payload['task_stats'] and 'kubernetes_stats' in payload['task_stats']:
+                resource_usage.update({
+                    'cpu_limit': int(payload['task_stats']['kubernetes_stats'][0]['cpu_limit']),
+                    'memory_limit': payload['task_stats']['kubernetes_stats'][0]['memory_limit']
+                })
+            elif payload['task_stats']:
+                resource_usage.update({
+                'cpu': round(float(payload['task_stats']["cpu_stats"]["cpu_usage"]["total_usage"]) / 1000000000, 2),
+                'memory_usage': round(float(payload['task_stats']["memory_stats"]["usage"]) / (1024 * 1024), 2),
+                'memory_limit': round(float(payload['task_stats']["memory_stats"]["limit"]) / (1024 * 1024), 2),
+                })
 
-        resource_usage_task.resource_usage = resource_usage
-        resource_usage_task.commit()
+            resource_usage_task.resource_usage = resource_usage
+            resource_usage_task.commit()
 
     @web.event('usage_throughput_monitor')
     def throughput_monitor(self, context, event, payload) -> None:
