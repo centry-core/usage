@@ -13,7 +13,7 @@
 #     limitations under the License.
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, Date, Boolean, String, UniqueConstraint
+from sqlalchemy import Column, Integer, Date, Boolean, String, UniqueConstraint, BigInteger
 
 from tools import db, db_tools, rpc_tools
 
@@ -29,10 +29,10 @@ class UsageStorage(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     date = Column(Date, default=datetime.utcnow)
     integration_name = Column(String(128), unique=False, nullable=True)
     integration_uid = Column(String(128), unique=False, nullable=True)
-    used_space = Column(Integer, unique=False, default=0)
-    current_delta = Column(Integer, unique=False, default=0)
-    max_delta = Column(Integer, unique=False, default=0)
-    throughput = Column(Integer, unique=False, default=0)
+    used_space = Column(BigInteger, unique=False, default=0)
+    current_delta = Column(BigInteger, unique=False, default=0)
+    max_delta = Column(BigInteger, unique=False, default=0)
+    throughput = Column(BigInteger, unique=False, default=0)
     is_project_resourses = Column(Boolean, unique=False, nullable=False, default=True)
 
     @property
