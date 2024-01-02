@@ -23,12 +23,23 @@ class Event:
                 if integration.id == cloud_settings['id'] and not cloud_settings['project_id']:
                     is_project_resourses = False
                     break
+        #
+        test_report_id = payload['id']
+        try:
+            test_report_id = int(test_report_id)
+        except:  # pylint: disable=W0702
+            log.warning(
+                "Usage: test_report_id is not an integer: %s, setting to NULL",
+                payload['id']
+            )
+            test_report_id = None
+        #
         resource_usage_test = UsageVCU(
             project_id = payload['project_id'],
             name = payload['name'],
             type = 'test',
             test_uid_or_task_id = payload['test_uid'],
-            test_report_id = payload['id'],
+            test_report_id = test_report_id,
             start_time = payload['start_time'],
             cpu = payload['test_config']['env_vars']['cpu_quota'],
             memory = payload['test_config']['env_vars']['memory_quota'],
@@ -43,13 +54,34 @@ class Event:
     def create_task_resource_usage(self, context, event, payload):
         is_cloud = False  # TODO: must change it when we will be able to run tasks in clouds
         is_project_resourses = False
+        #
+        task_result_id = payload['task_result_id']
+        try:
+            task_result_id = int(task_result_id)
+        except:  # pylint: disable=W0702
+            log.warning(
+                "Usage: task_result_id is not an integer: %s, setting to NULL",
+                payload['task_result_id']
+            )
+            task_result_id = None
+        #
+        test_report_id = payload.get('test_report_id')
+        try:
+            test_report_id = int(test_report_id)
+        except:  # pylint: disable=W0702
+            log.warning(
+                "Usage: test_report_id is not an integer: %s, setting to NULL",
+                payload.get('test_report_id')
+            )
+            test_report_id = None
+        #
         resource_usage_task = UsageVCU(
             project_id = payload['project_id'],
             name = payload['task_name'],
             type = 'task',
             test_uid_or_task_id = payload['task_id'],
-            task_result_id = payload['task_result_id'],
-            test_report_id = payload.get('test_report_id'),
+            task_result_id = task_result_id,
+            test_report_id = test_report_id,
             start_time = payload['start_time'],
             cpu = json.loads(payload['env_vars']).get('cpu_cores', 1),
             memory = json.loads(payload['env_vars']).get('memory', 1),
