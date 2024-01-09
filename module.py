@@ -36,8 +36,8 @@ class Module(module.ModuleModel):
         self.context = context
         self.descriptor = descriptor
 
-        self.integrations = dict()
-        self.sections = dict()
+        # self.integrations = dict()
+        # self.sections = dict()
         
         self.throughput_monitor_data = defaultdict(int)
         self.space_monitor_data = defaultdict(lambda: defaultdict(int))
@@ -132,5 +132,6 @@ class Module(module.ModuleModel):
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
         log.info('De-initializing module usage')
-        self.integrations = dict()
-        self.sections = dict()
+        self.write_monitor_data_to_database()
+        # self.integrations = dict()
+        # self.sections = dict()
