@@ -8,7 +8,7 @@ from pylon.core.tools import log
 
 
 class EndpointPD(BaseModel):
-    project_id: Optional[int]
+    project_id: Optional[int] = None
     mode: Optional[str]
     user: str
     display_name: Optional[str]
