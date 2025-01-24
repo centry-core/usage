@@ -3,7 +3,7 @@ from typing import Union, Optional, List
 from datetime import datetime, timedelta
 from hurry.filesize import size
 from sqlalchemy import func, asc, desc, case, cast, Integer, String, text
-from pydantic import parse_obj_as
+from pydantic.v1 import parse_obj_as
 
 from ..models.usage_api import UsageAPI
 from ..models.pd.predict import PredictPDWithTextLimit, PredictShortPD, PredictPD

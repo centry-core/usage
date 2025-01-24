@@ -1,5 +1,5 @@
 from typing import Optional, Union, List
-from pydantic import BaseModel, constr
+from pydantic.v1 import BaseModel, constr
 
 
 class SummaryPresetsPD(BaseModel):
