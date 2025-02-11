@@ -2,7 +2,7 @@ import json
 from typing import Optional, Union
 from datetime import datetime
 
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic.v1 import BaseModel, Field, validator, root_validator
 
 from pylon.core.tools import log
 

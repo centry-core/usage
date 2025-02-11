@@ -1,6 +1,6 @@
 import json
 from typing import Optional, Tuple, List
-from pydantic import ValidationError
+from pydantic.v1 import ValidationError
 from flask import request
 from pylon.core.tools import log
 

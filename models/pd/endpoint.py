@@ -1,7 +1,7 @@
 from typing import Optional, Union
 from datetime import datetime
 
-from pydantic import BaseModel, constr, validator
+from pydantic.v1 import BaseModel, constr, validator
 
 from tools import rpc_tools
 from pylon.core.tools import log
