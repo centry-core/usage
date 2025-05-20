@@ -17,16 +17,13 @@
 
 """ Module """
 from collections import defaultdict
-from datetime import date
+from queue import Empty
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module
-
-from .models.usage_storage import UsageStorage
+from tools import theme, VaultClient
 
 from .init_db import init_db
-
-from tools import theme, VaultClient
 
 
 class Module(module.ModuleModel):
@@ -38,7 +35,7 @@ class Module(module.ModuleModel):
 
         # self.integrations = dict()
         # self.sections = dict()
-        
+
         self.throughput_monitor_data = defaultdict(int)
         self.space_monitor_data = defaultdict(lambda: defaultdict(int))
         self.api_monitor_data = []
@@ -61,11 +58,11 @@ class Module(module.ModuleModel):
             kind="slot",
             permissions={
                 "permissions": ["projects.projects.project.view"]
-                },
+            },
             prefix="usage_",
             weight=5,
         )
-        
+
         # theme.register_mode_subsection(
         #     "administration", "configuration",
         #     "usage", "Usage",
@@ -101,8 +98,11 @@ class Module(module.ModuleModel):
         except Exception:
             log.info("Couldn't create a models symmary section")
 
-        self.create_usage_monitor()
-        self.create_storage_used_space_check()
+        try:
+            self.create_usage_monitor()
+            self.create_storage_used_space_check()
+        except Empty:
+            log.warning('Scheduling module is not available')
 
         vault_client = VaultClient()
         secrets = vault_client.get_all_secrets()
@@ -112,14 +112,13 @@ class Module(module.ModuleModel):
             secrets['usage_days_to_group_by_months'] = 365
         vault_client.set_secrets(secrets)
 
-
     def create_usage_monitor(self):
         schedule_data = {
             'name': 'usage_monitor',
             'cron': '*/3 * * * *',
             'rpc_func': 'usage_write_monitor_data_to_database'
         }
-        self.context.rpc_manager.call.scheduling_create_if_not_exists(schedule_data)
+        self.context.rpc_manager.timeout(5).scheduling_create_if_not_exists(schedule_data)
 
     def create_storage_used_space_check(self):
         schedule_data = {
@@ -127,7 +126,7 @@ class Module(module.ModuleModel):
             'cron': '0 0 * * *',
             'rpc_func': 'usage_storage_used_space_check'
         }
-        self.context.rpc_manager.call.scheduling_create_if_not_exists(schedule_data)
+        self.context.rpc_manager.timeout(5).scheduling_create_if_not_exists(schedule_data)
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
